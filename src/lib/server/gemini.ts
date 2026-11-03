@@ -15,9 +15,9 @@ type Content =
   | { type: "text"; text: string }
   | { type: "audio"; data: string; mime_type: string };
 
-function configuration() {
+function configuration(modelOverride?: string) {
   const apiKey = process.env.GEMINI_API_KEY?.trim();
-  const model = process.env.GEMINI_MODEL?.trim() || DEFAULT_GEMINI_MODEL;
+  const model = modelOverride || process.env.GEMINI_MODEL?.trim() || DEFAULT_GEMINI_MODEL;
   if (
     !apiKey ||
     apiKey.length > 512 ||
@@ -74,8 +74,9 @@ export async function generateStructured<T>(options: {
   content: Content[];
   schema: z.ZodType<T>;
   maxOutputTokens: number;
+  model?: string;
 }): Promise<T> {
-  const { apiKey, model } = configuration();
+  const { apiKey, model } = configuration(options.model);
   const controller = new AbortController();
   const deadline = setTimeout(
     () => controller.abort(new DOMException("Gemini deadline", "TimeoutError")),

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, Check, CheckCircle2, Clipboard, FileText, Mic, RotateCcw, Sparkles, Square, Plus, BriefcaseBusiness, Settings, PenLine, AudioLines, CircleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DRAFT_TOPICS, sectionsFromAnswers, serializeDraft } from "@/lib/draft";
 
 const questions = [
   { title: "Какие задачи сотрудник выполняет каждый день?", hint: "Расскажите о двух-трёх основных задачах, из которых складывается рабочий день", example: "Например: общается с клиентами, готовит отчёты, координирует работу команды" },
@@ -12,7 +13,7 @@ const questions = [
 ];
 const keys = ["daily_tasks", "current_project", "next_six_months", "tools_and_knowledge"] as const;
 const mock = process.env.NEXT_PUBLIC_ISKRA_MOCK === "true";
-type Vacancy = { vacancy_text: string; missing_information: string[] };
+type AssessmentItem = { topic: typeof keys[number]; status: "sufficient" | "clarify" | "missing"; evidence: string | null; question: string | null };
 
 async function api(path: string, body: object) {
   let response: Response;
@@ -32,7 +33,12 @@ export default function Home() {
   const [answerError, setAnswerError] = useState("");
   const [voiceError, setVoiceError] = useState(false);
   const [notice, setNotice] = useState("");
-  const [vacancy, setVacancy] = useState<Vacancy | null>(null);
+  const [draft, setDraft] = useState<string[] | null>(null);
+  const [draftSource, setDraftSource] = useState<string[] | null>(null);
+  const [editingFromResult, setEditingFromResult] = useState(false);
+  const [assessment, setAssessment] = useState<AssessmentItem[] | null>(null);
+  const [assessmentState, setAssessmentState] = useState<"idle" | "loading" | "error" | "ready">("idle");
+  const assessmentVersion = useRef(0);
   const [copied, setCopied] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const recorder = useRef<MediaRecorder | null>(null);
@@ -47,7 +53,7 @@ export default function Home() {
     return () => clearInterval(interval);
   }, [status]);
   const count = confirmed.filter(Boolean).length;
-  const changeAnswer = (value: string) => { setAnswers(a => a.map((v, i) => i === step ? value : v)); setConfirmed(c => c.map((v, i) => i === step ? false : v)); setMessage(""); setAnswerError(""); setNotice(""); };
+  const changeAnswer = (value: string) => { assessmentVersion.current++; setAssessment(null); setAssessmentState("idle"); setAnswers(a => a.map((v, i) => i === step ? value : v)); setConfirmed(c => c.map((v, i) => i === step ? false : v)); setMessage(""); setAnswerError(""); setNotice(""); };
   async function transcribe(blob: Blob) {
     setVoiceError(true);
     if (!blob.size) { setMessage("Запись пуста. Попробуйте ещё раз или введите ответ вручную"); setStatus("idle"); return; }
@@ -81,35 +87,37 @@ export default function Home() {
     } catch { setStatus("idle"); setMessage("Не удалось получить доступ к микрофону. Проверьте разрешение браузера или введите ответ вручную"); }
   }
   function stopRecording(cancel = false) { cancelled.current = cancel; if (recorder.current?.state === "recording") recorder.current.stop(); if (cancel) { setStatus("idle"); setNotice("Запись отменена. Можно попробовать снова или ввести ответ вручную"); } }
-  async function generate(nextAnswers = answers) {
-    setStatus("generating"); setMessage(""); setVoiceError(false);
+  async function checkCompleteness(source: string[]) {
+    const version = ++assessmentVersion.current;
+    setAssessment(null); setAssessmentState("loading");
     try {
-      let result: Vacancy;
-      if (mock) {
-        await new Promise(r => setTimeout(r, 700));
-        result = { vacancy_text: `Описание вакансии\n\nЕжедневные задачи\n${nextAnswers[0]}\n\nТекущий проект\n${nextAnswers[1]}\n\nБлижайшие полгода\n${nextAnswers[2]}\n\nИнструменты и знания\n${nextAnswers[3]}`, missing_information: ["Название должности не указано"] };
-      } else {
-        const data = await api("/api/generate", { answers: Object.fromEntries(keys.map((key, i) => [key, nextAnswers[i]])) });
-        if (typeof data.vacancy?.vacancy_text !== "string" || !data.vacancy.vacancy_text.trim() || !Array.isArray(data.vacancy.missing_information) || !data.vacancy.missing_information.every((x: unknown) => typeof x === "string")) throw new Error("Сервис вернул неполное описание. Попробуйте ещё раз");
-        result = data.vacancy;
-      }
-      setVacancy(result); setScreen("result");
-    } catch (e) { setMessage(e instanceof Error ? e.message : "Не удалось подготовить вакансию. Попробуйте ещё раз"); }
-    finally { setStatus("idle"); }
+      const result = await api("/api/completeness", { answers: Object.fromEntries(keys.map((key, i) => [key, source[i]])) });
+      if (version !== assessmentVersion.current) return;
+      if (!Array.isArray(result.assessment) || result.assessment.length !== 4) throw new Error("Некорректный ответ");
+      setAssessment(result.assessment); setAssessmentState("ready");
+    } catch {
+      if (version === assessmentVersion.current) setAssessmentState("error");
+    }
+  }
+  function generate(nextAnswers = answers) {
+    if (!draft) { setDraft(sectionsFromAnswers(nextAnswers)); setDraftSource([...nextAnswers]); }
+    setMessage(""); setVoiceError(false); setScreen("result"); setEditingFromResult(false);
+    void checkCompleteness(nextAnswers);
   }
   function next() {
     if (!answers[step].trim()) { setAnswerError("Добавьте ответ, чтобы продолжить"); return; }
     if (answers[step].trim().length < 15) { setAnswerError("Ответ получился коротким. Добавьте, пожалуйста, немного подробностей"); return; }
     setConfirmed(c => c.map((v, i) => i === step ? true : v)); setMessage(""); setAnswerError(""); setNotice("");
-    if (step < 3) setStep(step + 1); else void generate();
+    if (editingFromResult) { generate(answers); }
+    else if (step < 3) setStep(step + 1); else generate();
   }
-  async function copy() { try { await navigator.clipboard.writeText(vacancy?.vacancy_text || ""); setCopied(true); } catch { setMessage("Не удалось скопировать текст. Выделите его и скопируйте вручную"); } }
+  async function copy() { try { await navigator.clipboard.writeText(serializeDraft(draft || [])); setCopied(true); } catch { setMessage("Не удалось скопировать текст. Выделите его и скопируйте вручную"); } }
   const openAnswer = (i: number) => {
     if (status !== "idle" || !confirmed[i]) return;
-    setStep(i); setScreen("wizard"); setMessage(""); setAnswerError(""); setNotice("");
+    setEditingFromResult(screen === "result"); setStep(i); setScreen("wizard"); setMessage(""); setAnswerError(""); setNotice("");
   };
   const reset = () => {
-    setScreen("intro"); setStep(0); setAnswers(["", "", "", ""]); setConfirmed([false, false, false, false]); setVacancy(null); setMessage(""); setAnswerError(""); setNotice("");
+    setScreen("intro"); setStep(0); setAnswers(["", "", "", ""]); setConfirmed([false, false, false, false]); setDraft(null); setDraftSource(null); setAssessment(null); setAssessmentState("idle"); assessmentVersion.current++; setEditingFromResult(false); setCopied(false); setMessage(""); setAnswerError(""); setNotice("");
   };
   return (
     <div className="app-shell">
@@ -122,7 +130,7 @@ export default function Home() {
       </nav>
       <div className="app-main">
         <main className="workspace">
-          {mock && <div className="mock-banner">Демонстрационный режим: ответы обрабатываются локально, Gemini не используется</div>}
+          {mock && <div className="mock-banner">Демонстрационный режим записи и черновика; проверка полноты отправляет ответы в ИИ</div>}
           <div className="workspace-grid">
             <section className={`main-panel ${screen === "intro" ? "intro-panel" : ""}`} aria-label={screen === "result" ? "Черновик вакансии" : "Мастер вопросов"}>
               {screen === "intro" && <div className="intro-screen">
@@ -156,22 +164,31 @@ export default function Home() {
                 {answerError && <div id="answer-error" className="feedback error" role="alert"><CircleAlert size={17}/>{answerError}</div>}
                 {message && <div className="feedback error" role="alert"><CircleAlert size={17}/><span>{message}</span></div>}
                 {notice && <div className="feedback success" role="status"><CheckCircle2 size={17}/>{notice}</div>}
+                {(step === 3 || editingFromResult) && <p className="assessment-before-submit">Для оценки полноты четыре ответа будут отправлены в ИИ.</p>}
                 <div className="question-actions"><Button variant="ghost" className="action-back" disabled={status !== "idle"} onClick={() => { setMessage(""); setAnswerError(""); setNotice(""); if (step === 0) setScreen("intro"); else setStep(step - 1); }}><ArrowLeft/> Назад</Button><Button className={`action-primary ${!answers[step].trim() ? "action-empty" : ""}`} disabled={status !== "idle"} onClick={next}>{status === "generating" ? "Готовим черновик…" : step === 3 ? "Создать черновик" : "Подтвердить и далее"}<ArrowRight/></Button></div>
                 <div className="gentle-note" hidden><Sparkles size={17}/><p><b></b></p></div>
-              </div> : vacancy && <div className="result-screen">
-                <div className="question-top"><h2>Ваш черновик <em>готов</em></h2><div className="question-badge"><span/> ФИНАЛЬНЫЙ ЭТАП</div></div><p className="question-hint">Проверьте и дополните описание перед использованием</p>
-                <div className="result-box"><div className="result-heading"><div><FileText size={19}/><b>Описание вакансии</b></div><Button variant="outline" className="copy-button" onClick={copy}>{copied ? <Check/> : <Clipboard/>}{copied ? "Скопировано" : "Скопировать"}</Button></div><label className="sr-only" htmlFor="vacancy">Текст вакансии</label><textarea id="vacancy" value={vacancy.vacancy_text} onChange={e => { setVacancy({ ...vacancy, vacancy_text: e.target.value }); setCopied(false); }}/></div>
+              </div> : draft && <div className="result-screen">
+                <div className="question-top"><h2>Ваш черновик <em>готов</em></h2><div className="question-badge"><span/> ФИНАЛЬНЫЙ ЭТАП</div></div><p className="question-hint">Отредактируйте текст и проверьте его перед использованием</p>
+                <div className="result-box"><div className="result-heading"><div><FileText size={19}/><b>Описание вакансии</b></div><Button variant="outline" className="copy-button" onClick={copy}>{copied ? <Check/> : <Clipboard/>}{copied ? "Скопировано" : "Скопировать как есть"}</Button></div>
+                  {DRAFT_TOPICS.map((topic, i) => <div className="draft-section" key={topic.key}><label htmlFor={`draft-${topic.key}`}>{topic.title}</label><div className="draft-editor"><span aria-hidden="true">•</span><textarea id={`draft-${topic.key}`} rows={3} value={draft[i]} onChange={e => { setDraft(d => d?.map((value, index) => index === i ? e.target.value : value) ?? null); setCopied(false); }}/></div></div>)}
+                </div>
                 {message && <div className="feedback error" role="alert">{message}</div>}
-                <div className="result-missing"><b>Что ещё стоит уточнить</b><p>{vacancy.missing_information.length ? vacancy.missing_information.join(" · ") : "Проверьте черновик перед использованием"}</p></div>
+                {draftSource && answers.some((value, i) => value !== draftSource[i]) && <div className="draft-stale"><p>Ответы изменились. Черновик остался без изменений.</p><Button variant="outline" onClick={() => { if (window.confirm("Заменить текущий черновик текстом из ответов? Ваши правки черновика будут потеряны.")) { setDraft(sectionsFromAnswers(answers)); setDraftSource([...answers]); setCopied(false); } }}>Обновить черновик из ответов</Button></div>}
                 <div className="result-actions"><Button variant="ghost" className="action-back" onClick={() => openAnswer(3)}><ArrowLeft/> К ответам</Button><Button variant="outline" onClick={reset}><RotateCcw/> Начать заново</Button></div>
               </div>}
             </section>
-            <aside className="review-panel" aria-label="Прогресс и ответы">
+            {screen === "result" ? <aside className="review-panel assessment-panel" aria-label="Оценка полноты">
+              <div className="assessment-heading"><h2>Оценка полноты</h2><p>ИИ проверяет ответы и предлагает уточнения. Решение остаётся за вами.</p></div>
+              <p className="assessment-privacy">Для проверки четыре ответа отправляются в ИИ. Замечания не меняют черновик.</p>
+              {assessmentState === "loading" && <p role="status" className="assessment-message">Проверяем ответы…</p>}
+              {assessmentState === "error" && <div role="alert" className="assessment-message"><p>Не удалось проверить ответы. Черновик можно скопировать как есть.</p><Button variant="outline" onClick={() => void checkCompleteness(answers)}>Повторить проверку</Button></div>}
+              {assessmentState === "ready" && assessment && <div className="assessment-list">{DRAFT_TOPICS.map((topic, i) => { const item = assessment.find(value => value.topic === topic.key); if (!item) return null; return <section className="assessment-item" key={topic.key}><div className="assessment-item-title"><h3>{topic.title}</h3><span className={`assessment-status ${item.status}`}>{item.status === "sufficient" ? "Достаточно" : item.status === "clarify" ? "Уточнить" : "Нет данных"}</span></div>{item.evidence && <p className="assessment-evidence">В ответе: «{item.evidence}»</p>}{item.question && <p className="assessment-question">{item.question}</p>}<button className="edit-answer" onClick={() => openAnswer(i)}><PenLine size={12}/> Уточнить ответ</button></section>; })}</div>}
+            </aside> :             <aside className="review-panel" aria-label="Прогресс и ответы">
               <div className="review-header"><div><h2>Ваш прогресс</h2><p>Всё важное — здесь</p></div><div className="progress-ring" role="progressbar" aria-label="Подтверждено ответов" aria-valuemin={0} aria-valuemax={4} aria-valuenow={count}><svg viewBox="0 0 100 100" aria-hidden="true"><circle className="progress-track" cx="50" cy="50" r="43"/><circle className="progress-value" cx="50" cy="50" r="43" strokeDasharray={`${count / 4 * 270.18} 270.18`}/></svg><div><b>{count}<small>/4</small></b></div></div></div>
               <div className="review-divider"/>
               <div className="review-list">{questions.map((q, i) => <div className={`review-item ${screen === "wizard" && step === i ? "current" : ""}`} key={q.title}><div className={`review-number ${confirmed[i] ? "done" : ""}`}>{confirmed[i] ? <Check size={14}/> : String(i + 1).padStart(2, "0")}</div><div className="review-content"><b>{["Ежедневные задачи", "Текущий проект", "Ближайшие полгода", "Инструменты и знания"][i]}</b><p>{confirmed[i] ? answers[i] : screen === "wizard" && step === i ? "Текущий вопрос" : "Пока не заполнено"}</p>{confirmed[i] && <button className="edit-answer" disabled={status !== "idle"} onClick={() => openAnswer(i)}><PenLine size={12}/> Изменить</button>}</div></div>)}</div>
               <p className="review-foot" hidden></p>
-            </aside>
+            </aside>}
           </div>
         </main>
       </div>

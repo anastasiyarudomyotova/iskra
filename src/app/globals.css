@@ -368,3 +368,30 @@ body, .app-shell { background: #fbfbfb; color: #171717; }
 .review-content p { margin-top: 1.5px; }
 /* Center the marker against a title and one-line description, excluding the edit action. */
 .review-number { margin-top: 6.75px; }
+
+/* Editable draft and advisory completeness review. */
+.draft-section { padding: 16px 0; border-top: 1px solid #e8e8ec; }
+.draft-section label { display: block; font-weight: 700; font-size: 14px; color: #262629; margin-bottom: 8px; }
+.draft-editor { display: flex; align-items: flex-start; gap: 10px; }
+.draft-editor > span { color: #d85c00; font-size: 18px; line-height: 1.5; }
+.result-box .draft-editor textarea { flex: 1; min-height: 78px; width: 100%; resize: vertical; padding: 10px 12px; line-height: 1.6; }
+.draft-stale { margin-top: 16px; padding: 14px; background: #fff5e9; border-radius: 10px; font-size: 13px; }
+.draft-stale button { margin-top: 10px; white-space: normal; height: auto; min-height: 36px; }
+.assessment-heading h2 { font-size: 21px; line-height: 1.2; letter-spacing: -.04em; font-weight: 700; }
+.assessment-heading p, .assessment-privacy { font-size: 12px; line-height: 1.5; color: #62646a; margin-top: 8px; }
+.assessment-privacy { padding: 12px; background: #f6f6f8; border-radius: 9px; }
+.assessment-list { margin-top: 12px; }
+.assessment-item { padding: 14px 0; border-bottom: 1px solid #eaeaec; }
+.assessment-item:last-child { border-bottom: 0; padding-bottom: 0; }
+.assessment-item-title { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.assessment-item h3 { font-weight: 700; font-size: 13px; line-height: 1.4; }
+.assessment-status { flex-shrink: 0; font-size: 10px; font-weight: 700; padding: 3px 7px; border-radius: 6px; background: #f1f2f7; color: #55585e; }
+.assessment-status.sufficient { background: #eaf5ec; color: #28643a; }
+.assessment-status.clarify { background: #fff0df; color: #8d3b00; }
+.assessment-status.missing { background: #f1f2f7; color: #55585e; }
+.assessment-evidence, .assessment-question { margin-top: 8px; font-size: 12px; line-height: 1.5; color: #5f6268; overflow-wrap: anywhere; white-space: pre-wrap; }
+.assessment-question { color: #333; }
+.assessment-message { margin-top: 16px; font-size: 13px; line-height: 1.5; color: #55585e; }
+.assessment-message button { margin-top: 10px; }
+@media (max-width: 380px) { .result-heading { flex-wrap: wrap; } }
+.assessment-before-submit { font-size: 12px; line-height: 1.5; color: #62646a; margin-top: 14px; }
