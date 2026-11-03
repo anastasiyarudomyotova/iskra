@@ -71,6 +71,30 @@ git config core.hooksPath .githooks
 
 Подробности — в [CONTRIBUTING.md](CONTRIBUTING.md).
 
+## Защита `main` (одноразовая настройка владельца репозитория)
+
+Правила защищают `main` от прямых пушей. Применить их может только владелец
+репозитория или токен с правами администратора.
+
+Вариант 1 — скриптом (нужен `gh` с правами admin):
+
+```bash
+./scripts/setup-github-protection.sh
+```
+
+Вариант 2 — в интерфейсе GitHub:
+
+1. **Settings → General → Pull Requests**: включить _Allow squash merging_,
+   выключить merge commit и rebase; включить _Automatically delete head branches_.
+2. **Settings → Branches → Add branch protection rule**, pattern `main`:
+   - _Require a pull request before merging_ (0 обязательных одобрений, пока
+     владелец один; поднять до 1, когда появится второй ревьюер);
+   - _Require status checks to pass before merging_ + _Require branches to be up
+     to date_: выбрать `Repo hygiene` и `Lint, typecheck & build`;
+   - _Require conversation resolution before merging_;
+   - _Do not allow bypassing the above settings_;
+   - снять _Allow force pushes_ и _Allow deletions_.
+
 ## Секреты, данные и приватность
 
 - `.env.example` содержит **только пустые заглушки**. Реальные ключи живут в
