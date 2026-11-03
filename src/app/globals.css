@@ -364,6 +364,7 @@ body, .app-shell { background: #fbfbfb; color: #171717; }
 /* Align the result heading and progress labels with their indicators. */
 .result-screen .question-top h2 { margin-top: 0; }
 .question-screen .question-hint { margin-top: 6px; }
-.review-content > b { display: flex; align-items: center; min-height: 28px; line-height: 1.3; }
+.review-content > b { display: flex; align-items: center; min-height: 22px; line-height: 1.3; }
+.review-content p { margin-top: 1.5px; }
 /* Center the marker against a title and one-line description, excluding the edit action. */
-.review-number { margin-top: 10.5px; }
+.review-number { margin-top: 6.75px; }
