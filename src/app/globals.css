@@ -161,7 +161,7 @@ body { background: #f6f8f3; color: var(--ink); }
 
 /* Second visual pass: Искра's black, white and signal-orange palette. */
 :root { --ink: #171717; --quiet: #62646a; --forest: #ff7100; --line-soft: #e5e5e9; }
-body, .app-shell { background: #f1f2f7; color: #171717; }
+body, .app-shell { background: #fbfbfb; color: #171717; }
 .app-nav { background: #171717; border-color: #171717; color: #fff; }
 .brand-mark { color: #171717; background: #ff7100; border-radius: 50%; }
 .brand-period { color: #ff7100; }
@@ -310,7 +310,7 @@ body, .app-shell { background: #f1f2f7; color: #171717; }
   background: transparent;
   border: 0;
   border-radius: 0 16px 16px 0;
-  box-shadow: 3px 0 14px #30344808;
+  box-shadow: none;
 }
 .nav-item.selected {
   background: #fffaf5;
@@ -318,16 +318,16 @@ body, .app-shell { background: #f1f2f7; color: #171717; }
   border-radius: 11px;
 }
 .workspace {
-  padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) 16px;
+  padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) 0;
 }
 @media (max-width: 820px) {
   .app-nav {
     background: transparent;
     border: 0;
     border-radius: 0 0 14px 14px;
-    box-shadow: 0 3px 12px #30344808;
+    box-shadow: none;
   }
-  .workspace { padding: 12px max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)); }
+  .workspace { padding: 12px max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) env(safe-area-inset-left, 0px); }
 }
 
 /* Gradient for primary actions; the empty-answer state stays neutral. */
