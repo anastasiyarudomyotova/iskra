@@ -305,23 +305,29 @@ body, .app-shell { background: #f1f2f7; color: #171717; }
 .review-item .review-number.done { color: #fff; }
 .review-item:last-child { border-bottom: 0; padding-bottom: 0; }
 
-/* Recessed light navigation: the edge shadow falls onto the menu, not the workspace. */
+/* A shared shell surface with a subtle outline around the navigation. */
 .app-nav {
-  background: #ebe7e1;
-  border-right-color: #ded8d1;
-  border-radius: 0;
-  box-shadow: inset -13px 0 20px -17px #51413170;
+  background: transparent;
+  border: 1px solid #dfe1e8;
+  border-left: 0;
+  border-radius: 0 16px 16px 0;
+  box-shadow: 3px 0 14px #30344808;
 }
 .nav-item.selected {
   background: #fffaf5;
   border: 1px solid #f0e5dc;
   border-radius: 11px;
 }
+.workspace {
+  padding: max(24px, env(safe-area-inset-top)) max(24px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) 24px;
+}
 @media (max-width: 820px) {
   .app-nav {
-    background: #ebe7e1;
-    border-bottom-color: #ded8d1;
-    border-radius: 0;
-    box-shadow: inset 0 -12px 18px -17px #51413170;
+    background: transparent;
+    border: 0;
+    border-bottom: 1px solid #dfe1e8;
+    border-radius: 0 0 14px 14px;
+    box-shadow: 0 3px 12px #30344808;
   }
+  .workspace { padding: 20px max(16px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); }
 }
