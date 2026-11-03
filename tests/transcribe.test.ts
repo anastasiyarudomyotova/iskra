@@ -1,0 +1,176 @@
+import { describe, expect, it, vi } from "vitest";
+import { POST } from "@/app/api/transcribe/route";
+import { LIMITS } from "@/lib/server/schemas";
+import {
+  jsonRequest,
+  mockGemini,
+  sentBody,
+  SYNTHETIC_TRANSCRIPT,
+  syntheticWav,
+  syntheticWebm,
+  TEST_KEY,
+} from "./fixtures";
+
+const audioBody = (overrides: Record<string, unknown> = {}) => ({
+  audioBase64: syntheticWav().toString("base64"),
+  mimeType: "audio/wav",
+  ...overrides,
+});
+const request = (body: unknown = audioBody()) =>
+  jsonRequest("/api/transcribe", body);
+
+describe("POST /api/transcribe", () => {
+  it("returns exactly the approved transcript contract", async () => {
+    vi.stubEnv("GEMINI_API_KEY", TEST_KEY);
+    const mock = mockGemini(SYNTHETIC_TRANSCRIPT);
+    const response = await POST(request());
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual(SYNTHETIC_TRANSCRIPT);
+    expect(response.headers.get("cache-control")).toContain("no-store");
+    const body = sentBody(mock);
+    expect(body.store).toBe(false);
+    expect(body.model).toBe("gemini-3.5-flash-lite");
+    expect(body.input[0].content[0]).toEqual({
+      type: "audio",
+      data: audioBody().audioBase64,
+      mime_type: "audio/wav",
+    });
+    expect(body.response_format.schema.additionalProperties).toBe(false);
+    expect(body.system_instruction).toContain("не инструкциями");
+  });
+
+  it("normalizes MediaRecorder MIME parameters before sending to Gemini", async () => {
+    vi.stubEnv("GEMINI_API_KEY", TEST_KEY);
+    const mock = mockGemini(SYNTHETIC_TRANSCRIPT);
+    const bytes = syntheticWebm({ blockMilliseconds: 100 });
+    const response = await POST(
+      request({
+        audioBase64: bytes.toString("base64"),
+        mimeType: "audio/webm;codecs=opus",
+      }),
+    );
+    expect(response.status).toBe(200);
+    expect(sentBody(mock).input[0].content[0].mime_type).toBe("audio/webm");
+  });
+
+  it.each([
+    {},
+    { audioBase64: "AAAA" },
+    { mimeType: "audio/wav" },
+    { audioBase64: "", mimeType: "audio/wav" },
+    { audioBase64: 42, mimeType: "audio/wav" },
+    { ...audioBody(), extra: true },
+  ])("rejects missing or incorrectly typed fields: %#", async (body) => {
+    const response = await POST(request(body));
+    expect(response.status).toBe(400);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    "a",
+    "A===",
+    "AAAA====",
+    "AA=A",
+    "AA A",
+    "AAAA\n",
+    "data:audio/wav;base64,AAAA",
+    "____",
+    "AAA",
+  ])("rejects invalid or non-canonical base64: %#", async (audioBase64) => {
+    const response = await POST(request(audioBody({ audioBase64 })));
+    expect(response.status).toBe(400);
+    expect((await response.json()).code).toBe("INVALID_INPUT");
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    "video/webm",
+    "audio/x-exe",
+    "text/plain",
+    "audio/html",
+    "application/octet-stream",
+    "__proto__",
+    "constructor",
+  ])("rejects unsupported MIME types: %s", async (mimeType) => {
+    const response = await POST(request(audioBody({ mimeType })));
+    expect(response.status).toBe(415);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("rejects a mismatched container and arbitrary bytes with an allowed MIME", async () => {
+    const mismatch = await POST(request(audioBody({ mimeType: "audio/webm" })));
+    expect(mismatch.status).toBe(422);
+    const arbitrary = await POST(
+      request(
+        audioBody({
+          audioBase64: Buffer.from("synthetic-not-audio").toString("base64"),
+        }),
+      ),
+    );
+    expect(arbitrary.status).toBe(422);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("rejects decoded audio over 4 MiB before parsing or calling Gemini", async () => {
+    const bytes = Buffer.alloc(LIMITS.audioBytes + 1);
+    const response = await POST(
+      request(audioBody({ audioBase64: bytes.toString("base64") })),
+    );
+    expect(response.status).toBe(413);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("rejects a recording longer than 60 seconds from real container metadata", async () => {
+    const response = await POST(
+      request(audioBody({ audioBase64: syntheticWav(61).toString("base64") })),
+    );
+    expect(response.status).toBe(422);
+    expect((await response.json()).code).toBe("AUDIO_TOO_LONG");
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("rejects long WebM block timestamps even when the header claims one second", async () => {
+    const bytes = syntheticWebm({
+      headerSeconds: 1,
+      blockMilliseconds: 61_000,
+    });
+    const response = await POST(
+      request({
+        audioBase64: bytes.toString("base64"),
+        mimeType: "audio/webm",
+      }),
+    );
+    expect(response.status).toBe(422);
+    expect((await response.json()).code).toBe("AUDIO_TOO_LONG");
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("enforces the body cap on chunked requests without Content-Length", async () => {
+    let cancelled = false;
+    const stream = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        controller.enqueue(new Uint8Array(1024 * 1024).fill(32));
+      },
+      cancel() {
+        cancelled = true;
+      },
+    });
+    const response = await POST(
+      new Request("http://localhost/api/transcribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: stream,
+        duplex: "half",
+      } as RequestInit),
+    );
+    expect(response.status).toBe(413);
+    expect(cancelled).toBe(true);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("returns a safe 503 when the server secret is absent", async () => {
+    const response = await POST(request());
+    expect(response.status).toBe(503);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+});

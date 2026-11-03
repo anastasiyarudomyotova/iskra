@@ -13,12 +13,14 @@ NEXT_PUBLIC_ISKRA_MOCK=true npm run dev
 
 В деморежиме текст расшифровки **вымышленный**, аудио не отправляется, а черновик
 составляется локально из ответов по шаблону, без генеративного ИИ. Для настоящей
-интеграции запустите без флага и подключите серверные маршруты `POST /api/transcribe`
-и `POST /api/generate` по контракту из UI-брифа. В этом PR маршруты и ключи не
-добавляются: до их подключения UI покажет ошибку и сохранит ответы. Аудио отправляется
-на сервер только при реальном режиме, после остановки записи; серверный адаптер должен
-передать его в Gemini. Запись поддерживается браузерами с MediaRecorder и разрешением
-на микрофон; текстовый ввод доступен всегда. Записи не сохраняются в репозиторий.
+интеграции запустите без флага и задайте серверную переменную `GEMINI_API_KEY`.
+Маршруты `POST /api/transcribe` и `POST /api/generate` реализованы по контракту
+UI-брифа через Gemini Interactions API (`gemini-3.5-flash-lite` по умолчанию,
+`store: false`). Без ключа сервер вернёт понятную ошибку, а UI сохранит ответы.
+Аудио отправляется на сервер только в реальном режиме после остановки записи.
+Запись поддерживается браузерами с MediaRecorder и разрешением на микрофон;
+текстовый ввод доступен всегда. Записи не сохраняются в репозиторий.
+Подробности, лимиты и smoke-test — в [INTEGRATIONS.md](INTEGRATIONS.md).
 
 Проверка содержательности сейчас ограничена непустым ответом и минимальной длиной
 15 символов; это не семантическая оценка. Демо не устанавливает должность или иные
@@ -52,14 +54,19 @@ git clone https://github.com/anastasiyarudomyotova/iskra.git
 cd iskra
 npm ci
 
-cp .env.example .env.local   # значения оставить пустыми, пока не согласованы
+cp .env.example .env.local   # для демо значения можно оставить пустыми
 npm run dev                  # http://localhost:3000
 ```
+
+Для реальной интеграции задайте `GEMINI_API_KEY` в серверном окружении или
+локальном `.env.local` (не коммитить), оставьте `GEMINI_MODEL` пустой и запустите
+`npm run dev` без `NEXT_PUBLIC_ISKRA_MOCK`. Ключ не передаётся в браузер.
 
 Проверить, что всё как в CI:
 
 ```bash
-npm run verify    # гигиена репозитория + lint + typecheck + production build
+npm test          # серверные тесты с mock Gemini, без настоящего ключа
+npm run verify    # гигиена + lint + typecheck + тесты + production build
 ```
 
 ## Скрипты
@@ -72,6 +79,8 @@ npm run verify    # гигиена репозитория + lint + typecheck + p
 | `npm run lint`          | ESLint (`eslint-config-next`)              |
 | `npm run typecheck`     | `next typegen && tsc --noEmit`             |
 | `npm run check:secrets` | запрет `.env*`, ключей и аудиофайлов в Git |
+| `npm test`              | серверные тесты, Gemini endpoint mocked    |
+| `npm run test:watch`    | тесты в режиме наблюдения                  |
 | `npm run format`        | Prettier + сортировка Tailwind-классов     |
 | `npm run verify`        | полный локальный аналог CI                 |
 
@@ -148,7 +157,7 @@ npx shadcn@latest add dialog field
    `.env.example`), ключи и сертификаты, аудио, артефакты сборки; сканирует текст на
    сигнатуры ключей и проверяет, что в `.env.example` нет значений.
 2. **Lint, typecheck & build** — `npm ci` → `npm run lint` → `npm run typecheck` →
-   `npm run build`.
+   `npm test` (mock Gemini, без секретов) → `npm run build`.
 
 ## Деплой (Vercel, после согласования)
 
@@ -165,12 +174,16 @@ npx shadcn@latest add dialog field
 src/
   app/
     layout.tsx        # корневой layout: шрифты, тема, метаданные
-    page.tsx          # техническая заглушка (продуктового UI нет)
+    page.tsx          # мастер создания вакансии и деморежим
+    api/transcribe/route.ts  # POST: аудио → расшифровка
+    api/generate/route.ts    # POST: четыре ответа → вакансия
     globals.css       # Tailwind + тема shadcn/ui
   components/
     theme-provider.tsx
     ui/button.tsx     # пример установленного компонента shadcn/ui
   lib/utils.ts        # cn()
+  lib/server/         # Gemini, схемы, валидация аудио, безопасные ошибки
+tests/                # синтетические фикстуры и mock Gemini
 scripts/check-secrets.mjs   # проверка гигиены репозитория
 .githooks/pre-commit        # тот же проверка до коммита
 .github/workflows/ci.yml    # CI
@@ -178,6 +191,7 @@ scripts/check-secrets.mjs   # проверка гигиены репозитор
 
 ## Статус
 
-Готово: каркас, тема, компонентный слой, защита `main`, проверки CI, документация.
-Не реализовано (по договорённости): продуктовые экраны, интеграция с Gemini,
-бизнес-логика генерации вакансий, деплой.
+Готово: мастер создания вакансии, деморежим, серверные маршруты Gemini,
+синтетические тесты без ключа, проверки CI и документация интеграции.
+Не проверено в этой задаче: живой вызов Gemini и end-to-end с реальным серверным
+секретом. Деплой и публикация — после согласования PM.

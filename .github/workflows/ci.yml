@@ -47,5 +47,7 @@ jobs:
         run: npm run lint
       - name: Typecheck
         run: npm run typecheck
+      - name: Test server routes (mocked Gemini, no secrets)
+        run: npm test
       - name: Build
         run: npm run build
