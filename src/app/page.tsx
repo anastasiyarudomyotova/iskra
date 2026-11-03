@@ -119,7 +119,6 @@ export default function Home() {
       </nav>
       <div className="app-main">
         <main className="workspace">
-          <div className="workspace-heading"><div className="workspace-tag"><span/> ЧЕРНОВИК</div></div>
           {mock && <div className="mock-banner">Демонстрационный режим: ответы обрабатываются локально, Gemini не используется</div>}
           <div className="workspace-grid">
             <section className="main-panel" aria-label={screen === "result" ? "Черновик вакансии" : "Мастер вопросов"}>

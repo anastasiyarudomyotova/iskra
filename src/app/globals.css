@@ -271,8 +271,7 @@ body, .app-shell { background: #f1f2f7; color: #171717; }
   .question-top .question-badge { font-size: 9px; margin-top: 7px; }
 }
 
-/* Keep the existing status tag; compact the voice block and put its art on the right. */
-.workspace-heading { justify-content: flex-end; }
+/* Compact the voice block and put its art on the right. */
 .voice-box { padding: 12px 19px; }
 .voice-body { display: flex; flex-direction: row-reverse; gap: 18px; margin-top: 0; }
 .signal-art { width: 130px; height: 82px; flex-basis: 130px; margin: 0; }
