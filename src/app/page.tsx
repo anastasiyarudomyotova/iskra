@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, ArrowRight, Check, CheckCircle2, Clipboard, FileText, Lightbulb, Mic, RotateCcw, Sparkles, Square, WandSparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, CheckCircle2, Clipboard, FileText, Mic, RotateCcw, Sparkles, Square, LayoutGrid, BriefcaseBusiness, UsersRound, HelpCircle, ChevronRight, PenLine, AudioLines, CircleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const questions = [
@@ -30,17 +30,26 @@ export default function Home() {
   const [status, setStatus] = useState<"idle" | "recording" | "transcribing" | "generating">("idle");
   const [message, setMessage] = useState("");
   const [answerError, setAnswerError] = useState("");
+  const [voiceError, setVoiceError] = useState(false);
   const [notice, setNotice] = useState("");
   const [vacancy, setVacancy] = useState<Vacancy | null>(null);
   const [copied, setCopied] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
   const recorder = useRef<MediaRecorder | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cancelled = useRef(false);
   const chunks = useRef<Blob[]>([]);
   useEffect(() => () => { cancelled.current = true; if (timer.current) clearTimeout(timer.current); if (recorder.current?.state === "recording") recorder.current.stop(); recorder.current?.stream.getTracks().forEach(t => t.stop()); }, []);
+  useEffect(() => {
+    if (status !== "recording") return;
+    const started = Date.now();
+    const interval = setInterval(() => setElapsed(Math.min(60, Math.floor((Date.now() - started) / 1000))), 250);
+    return () => clearInterval(interval);
+  }, [status]);
   const count = confirmed.filter(Boolean).length;
   const changeAnswer = (value: string) => { setAnswers(a => a.map((v, i) => i === step ? value : v)); setConfirmed(c => c.map((v, i) => i === step ? false : v)); setMessage(""); setAnswerError(""); setNotice(""); };
   async function transcribe(blob: Blob) {
+    setVoiceError(true);
     if (!blob.size) { setMessage("Запись пуста. Попробуйте ещё раз или введите ответ вручную."); setStatus("idle"); return; }
     setStatus("transcribing"); setMessage("");
     try {
@@ -53,13 +62,13 @@ export default function Home() {
         transcript = data.transcript;
         if (Array.isArray(data.uncertainWords) && data.uncertainWords.length) setNotice(`Проверьте слова: ${data.uncertainWords.join(", ")}`);
       }
-      setAnswerError(""); setAnswers(a => a.map((v, i) => i === step ? transcript : v)); setConfirmed(c => c.map((v, i) => i === step ? false : v));
+      setVoiceError(false); setAnswerError(""); setAnswers(a => a.map((v, i) => i === step ? transcript : v)); setConfirmed(c => c.map((v, i) => i === step ? false : v));
       setNotice(n => n || "Текст готов. Проверьте и отредактируйте его перед подтверждением.");
     } catch (e) { setMessage(e instanceof Error ? e.message : "Не удалось распознать запись. Попробуйте ещё раз."); }
     finally { setStatus("idle"); }
   }
   async function startRecording() {
-    setMessage(""); setNotice("");
+    setMessage(""); setAnswerError(""); setNotice(""); setVoiceError(true);
     if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") { setMessage("Запись не поддерживается в этом браузере. Введите ответ вручную."); return; }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -67,13 +76,13 @@ export default function Home() {
       r.ondataavailable = e => { if (e.data.size) chunks.current.push(e.data); };
       r.onstop = () => { stream.getTracks().forEach(t => t.stop()); if (timer.current) clearTimeout(timer.current); if (!cancelled.current) void transcribe(new Blob(chunks.current, { type: r.mimeType })); };
       r.onerror = () => { cancelled.current = true; stream.getTracks().forEach(t => t.stop()); setStatus("idle"); setMessage("Запись прервалась. Попробуйте снова или введите ответ вручную."); };
-      r.start(); setStatus("recording");
+      r.start(); setElapsed(0); setStatus("recording");
       timer.current = setTimeout(() => { cancelled.current = true; if (r.state === "recording") r.stop(); setStatus("idle"); setMessage("Запись слишком длинная: максимум 60 секунд. Попробуйте ещё раз или введите текст."); }, 60000);
     } catch { setStatus("idle"); setMessage("Не удалось получить доступ к микрофону. Проверьте разрешение браузера или введите ответ вручную."); }
   }
   function stopRecording(cancel = false) { cancelled.current = cancel; if (recorder.current?.state === "recording") recorder.current.stop(); if (cancel) { setStatus("idle"); setNotice("Запись отменена. Можно попробовать снова или ввести ответ вручную."); } }
   async function generate(nextAnswers = answers) {
-    setStatus("generating"); setMessage("");
+    setStatus("generating"); setMessage(""); setVoiceError(false);
     try {
       let result: Vacancy;
       if (mock) {
@@ -95,17 +104,81 @@ export default function Home() {
     if (step < 3) setStep(step + 1); else void generate();
   }
   async function copy() { try { await navigator.clipboard.writeText(vacancy?.vacancy_text || ""); setCopied(true); } catch { setMessage("Не удалось скопировать текст. Выделите его и скопируйте вручную."); } }
-  return <div className="app-shell">
-    <header className="topbar"><div className="brand"><span className="brand-icon"><Sparkles size={20}/></span><span>искра<span className="brand-dot">.</span></span></div><div className="top-right"><span className="top-label">ВАШ ПОМОЩНИК В НАЙМЕ</span><span className="avatar">И</span></div></header>
-    <main className="workspace">
-      <div className="breadcrumb"><span>Рабочее пространство</span><span>/</span><strong>Создание вакансии</strong></div>
-      {mock && <div className="mock-banner">Демонстрационный режим: ответы обрабатываются локально, Gemini не используется.</div>}
-      <div className="layout">
-        <aside className="sidebar"><div className="side-label">СОЗДАНИЕ ВАКАНСИИ</div><h2>Расскажите о роли.<br/><span>Мы поможем с остальным.</span></h2><p>Несколько простых вопросов — и основа вакансии будет готова.</p><div className="side-divider"/><div className="side-steps">{["Знакомство", "Четыре вопроса", "Готовый черновик"].map((label, i) => <div key={label} className={`side-step ${(screen === "intro" ? 0 : screen === "wizard" ? 1 : 2) === i ? "active" : ""}`}><span>{i + 1}</span>{label}</div>)}</div><div className="side-bottom"><Sparkles size={17}/><span>Меньше рутины.<br/><b>Больше времени для людей.</b></span></div></aside>
-        <section className="content">
-          {screen === "intro" ? <div className="intro panel"><div className="eyebrow"><span className="eyebrow-dot"/> НОВАЯ ВАКАНСИЯ</div><div className="intro-art"><div className="orbit orbit-one"/><div className="orbit orbit-two"/><div className="art-center"><Sparkles size={38} strokeWidth={1.5}/></div><span className="art-star">✳</span></div><h1>Давайте создадим<br/><em>вакансию вместе</em></h1><p className="lead">Расскажите о будущем сотруднике своими словами, а Искра поможет собрать всё в понятное описание.</p><div className="intro-facts"><div><span>01</span><p><b>Ответьте на 4 вопроса</b><br/>Голосом или текстом</p></div><div><span>02</span><p><b>Проверьте результат</b><br/>Ответы и черновик можно изменить</p></div></div><Button className="primary-button" onClick={() => setScreen("wizard")}>Начать создание <ArrowRight/></Button><p className="privacy">Используйте только вымышленные данные для тестирования.</p></div> : screen === "wizard" ? <div className="wizard panel"><div className="wizard-top"><div><div className="eyebrow"><span className="eyebrow-dot"/> СОЗДАЁМ ВАКАНСИЮ</div><p className="step-count">ВОПРОС {String(step + 1).padStart(2, "0")} <span>/ 04</span></p></div><div className="progress-ring" role="progressbar" aria-label="Подтверждено ответов" aria-valuemin={0} aria-valuemax={4} aria-valuenow={count}><svg viewBox="0 0 100 100" aria-hidden="true"><circle className="ring-bg" cx="50" cy="50" r="43"/><circle className="ring-fill" cx="50" cy="50" r="43" strokeDasharray={`${count / 4 * 270.18} 270.18`}/></svg><div><b>{count}<small>/4</small></b><span>готово</span></div></div></div><h1>{questions[step].title}</h1><p className="lead">{questions[step].hint}</p><div className="answer-card"><div className="answer-head"><div className="answer-icon"><Mic size={20}/></div><div><h3>Ваш ответ</h3><p>Запишите голосом или напишите текст</p></div></div><div className="record-area"><Button variant="outline" className={`record-button ${status === "recording" ? "recording" : ""}`} disabled={status === "transcribing" || status === "generating"} onClick={() => status === "recording" ? stopRecording() : void startRecording()}>{status === "recording" ? <><Square size={16}/> Остановить запись</> : <><Mic size={16}/> Записать ответ</>}</Button>{status === "recording" ? <Button variant="ghost" onClick={() => stopRecording(true)}>Отменить</Button> : <span>до 60 секунд</span>}</div><p className="voice-privacy">{mock ? "В деморежиме запись не отправляется и расшифровка вымышленная." : "Короткая запись будет отправлена в Gemini для расшифровки. Используйте только вымышленные данные."}</p><div className="or"><span/>или текстом<span/></div><label className="sr-only" htmlFor="answer">Ответ на вопрос {step + 1}</label><textarea id="answer" aria-invalid={!!answerError} aria-describedby={answerError ? "answer-error" : "answer-hint"} value={answers[step]} onChange={e => changeAnswer(e.target.value)} placeholder={questions[step].example} disabled={status !== "idle"}/><div className="answer-footer"><span id="answer-hint">{status === "transcribing" ? "Распознаём запись…" : "Ответ можно отредактировать"}</span><span>{answers[step].length} символов</span></div></div>{answerError && <div id="answer-error" className="alert" role="alert">{answerError}</div>}{message && <div className="alert" role="alert">{message}</div>}{notice && <div className="notice" role="status"><CheckCircle2 size={16}/>{notice}</div>}<div className="wizard-actions"><Button variant="ghost" className="back-button" disabled={status !== "idle"} onClick={() => { setMessage(""); setAnswerError(""); setNotice(""); if (step === 0) setScreen("intro"); else setStep(step - 1); }}><ArrowLeft/> Назад</Button><Button className={`primary-button ${!answers[step].trim() ? "primary-button-empty" : ""}`} disabled={status !== "idle"} onClick={next}>{status === "generating" ? "Готовим черновик…" : step === 3 ? "Создать черновик" : "Подтвердить и далее"}<ArrowRight/></Button></div><div className="tip"><Lightbulb size={18}/><p><b>Небольшая подсказка</b><br/>Говорите так, как рассказали бы коллеге. Не нужно подбирать идеальные формулировки.</p></div></div> : vacancy && <div className="result panel"><div className="eyebrow"><span className="eyebrow-dot"/> ВСЁ ГОТОВО</div><div className="result-heading"><div><h1>Черновик вакансии <span>готов!</span></h1><p className="lead">Проверьте текст и дополните его перед публикацией.</p></div><div className="result-icon"><WandSparkles size={27}/></div></div><div className="result-card"><div className="result-card-head"><div><FileText size={18}/><b>Описание вакансии</b></div><Button variant="outline" onClick={copy}><Clipboard/>{copied ? "Скопировано" : "Скопировать"}</Button></div><label htmlFor="vacancy" className="sr-only">Текст вакансии</label><textarea id="vacancy" value={vacancy.vacancy_text} onChange={e => { setVacancy({ ...vacancy, vacancy_text: e.target.value }); setCopied(false); }}/></div>{message && <div className="alert" role="alert">{message}</div>}<div className="missing"><Lightbulb size={19}/><div><b>Что ещё стоит уточнить</b><p>{vacancy.missing_information.length ? vacancy.missing_information.join(" · ") : "Дополнительные сведения не отмечены. Проверьте черновик перед использованием."}</p></div></div><div className="review-title"><h3>Ваши ответы</h3><span>4 из 4</span></div><div className="review-list">{questions.map((q, i) => <div key={q.title}><span className="review-check"><Check size={14}/></span><div><b>{q.title}</b><p>{answers[i]}</p></div><Button variant="ghost" onClick={() => { setStep(i); setScreen("wizard"); setMessage(""); setAnswerError(""); }}>Изменить</Button></div>)}</div><Button variant="ghost" className="restart" onClick={() => { setScreen("intro"); setStep(0); setAnswers(["", "", "", ""]); setConfirmed([false, false, false, false]); setVacancy(null); setMessage(""); setAnswerError(""); }}><RotateCcw/> Начать заново</Button></div>}
-        </section>
-      </div><footer>ИСКРА <span>✳</span> ПОМОГАЕТ НАХОДИТЬ СВОИХ</footer>
-    </main>
-  </div>;
+  const openAnswer = (i: number) => {
+    if (status !== "idle" || !confirmed[i]) return;
+    setStep(i); setScreen("wizard"); setMessage(""); setAnswerError(""); setNotice("");
+  };
+  const reset = () => {
+    setScreen("intro"); setStep(0); setAnswers(["", "", "", ""]); setConfirmed([false, false, false, false]); setVacancy(null); setMessage(""); setAnswerError(""); setNotice("");
+  };
+  return (
+    <div className="app-shell">
+      <aside className="app-nav" aria-label="Навигация по мастеру">
+        <div className="brand"><span className="brand-mark" aria-hidden="true"><Sparkles size={20}/></span><span>искра<span className="brand-period">.</span></span></div>
+        <div className="nav-caption">РАБОЧЕЕ ПРОСТРАНСТВО</div>
+        <div className="nav-item muted"><LayoutGrid size={18}/><span>Обзор</span></div>
+        <div className="nav-item selected"><BriefcaseBusiness size={18}/><span>Вакансии</span><span className="nav-dot"/></div>
+        <div className="nav-item muted"><UsersRound size={18}/><span>Кандидаты</span></div>
+        <div className="nav-spacer"/>
+        <div className="nav-note"><div className="nav-note-icon"><Sparkles size={17}/></div><b>Больше времени<br/>для людей.</b><p>Искра помогает сосредоточиться на главном.</p></div>
+        <div className="nav-help"><HelpCircle size={17}/><span>Помощник в найме</span></div>
+      </aside>
+      <div className="app-main">
+        <header className="app-header"><div className="header-crumb">Вакансии <ChevronRight size={14}/> <strong>Новая вакансия</strong></div><div className="header-right"><span className="header-label">РАБОЧЕЕ ПРОСТРАНСТВО</span><div className="avatar">И</div></div></header>
+        <main className="workspace">
+          <div className="workspace-heading"><div><div className="eyebrow-label"><span/> МАСТЕР ВАКАНСИИ</div><h1>Создание вакансии<span className="heading-spark"> ✳</span></h1><p>Из ваших слов — в понятное описание роли.</p></div><div className="workspace-tag"><span/> ЧЕРНОВИК</div></div>
+          {mock && <div className="mock-banner">Демонстрационный режим: ответы обрабатываются локально, Gemini не используется.</div>}
+          <div className="workspace-grid">
+            <section className="main-panel" aria-label={screen === "result" ? "Черновик вакансии" : "Мастер вопросов"}>
+              {screen === "intro" ? <div className="intro-screen">
+                <div className="intro-kicker"><Sparkles size={16}/> ДАВАЙТЕ ЗНАКОМИТЬСЯ</div>
+                <div className="intro-orbit" aria-hidden="true"><span className="orbit-line one"/><span className="orbit-line two"/><span className="orbit-core"><Sparkles size={38} strokeWidth={1.4}/></span><span className="orbit-star">✳</span></div>
+                <h2>Хорошая вакансия<br/><em>начинается с разговора.</em></h2>
+                <p className="intro-lead">Расскажите о задачах и проектах будущего сотрудника. Искра поможет собрать ваши ответы в черновик вакансии.</p>
+                <div className="intro-steps"><div><span>01</span><p><b>Четыре вопроса</b><br/>Отвечайте голосом или текстом</p></div><div><span>02</span><p><b>Всё под контролем</b><br/>Проверьте ответы и черновик</p></div></div>
+                <Button className="action-primary" onClick={() => setScreen("wizard")}>Начать создание <ArrowRight/></Button>
+                <p className="intro-privacy">Для тестирования используйте только вымышленные данные.</p>
+              </div> : screen === "wizard" ? <div className="question-screen">
+                <div className="question-top"><div className="question-badge"><span/> ВОПРОС {String(step + 1).padStart(2, "0")} <span className="badge-muted">/ 04</span></div><span className="question-category">{["ЕЖЕДНЕВНЫЕ ЗАДАЧИ", "ТЕКУЩИЙ ПРОЕКТ", "БЛИЖАЙШИЕ ПОЛГОДА", "ИНСТРУМЕНТЫ И ЗНАНИЯ"][step]}</span></div>
+                <h2>{questions[step].title}</h2><p className="question-hint">{questions[step].hint}</p>
+                <div className="input-panel">
+                  <div className="input-heading"><div className="input-icon"><AudioLines size={20}/></div><div><h3>Ваш ответ</h3><p>Расскажите своими словами</p></div><span className="input-label">ГОЛОС ИЛИ ТЕКСТ</span></div>
+                  <div className={`voice-box ${status === "recording" ? "voice-active" : ""}`}>
+                    <div className="voice-status" aria-live="polite"><span className="voice-indicator"/><b>{status === "recording" ? "Идёт запись" : status === "transcribing" ? "Расшифровываем запись" : notice.includes("Текст готов") || notice.startsWith("Проверьте слова") ? "Расшифровка готова" : voiceError && message ? "Не удалось обработать запись" : "Готовы записать ответ"}</b><span>{status === "recording" ? `00:${String(elapsed).padStart(2, "0")} / 01:00` : status === "transcribing" ? "Это может занять немного времени" : "До 60 секунд"}</span></div>
+                    {status === "recording" && <div className="waveform" aria-label="Запись идёт"><span/><span/><span/><span/><span/><span/><span/><span/><span/></div>}
+                    <div className="voice-actions"><Button variant="outline" className="voice-button" disabled={status === "transcribing" || status === "generating"} onClick={() => status === "recording" ? stopRecording() : void startRecording()}>{status === "recording" ? <><Square size={16}/> Завершить запись</> : <><Mic size={16}/> {voiceError && message ? "Попробовать снова" : "Записать ответ"}</>}</Button>{status === "recording" && <Button variant="ghost" className="cancel-button" onClick={() => stopRecording(true)}>Отменить</Button>}</div>
+                  </div>
+                  <p className="voice-privacy">{mock ? "Деморежим: запись не отправляется, расшифровка вымышленная." : "Запись будет отправлена в Gemini для расшифровки. Используйте только вымышленные данные."}</p>
+                  <div className="input-divider"><span/> ИЛИ ВВЕДИТЕ ТЕКСТ <span/></div>
+                  <label className="text-label" htmlFor="answer">{notice && !message ? "Текст ответа · можно редактировать" : "Текст ответа"}</label>
+                  <textarea id="answer" aria-invalid={!!answerError} aria-describedby={answerError ? "answer-error" : "answer-hint"} value={answers[step]} onChange={e => changeAnswer(e.target.value)} placeholder={questions[step].example} disabled={status !== "idle"}/>
+                  <div className="answer-footer"><span id="answer-hint">Ответ можно изменить до подтверждения</span><span>{answers[step].length} символов</span></div>
+                </div>
+                {answerError && <div id="answer-error" className="feedback error" role="alert"><CircleAlert size={17}/>{answerError}</div>}
+                {message && <div className="feedback error" role="alert"><CircleAlert size={17}/><span>{message}</span></div>}
+                {notice && <div className="feedback success" role="status"><CheckCircle2 size={17}/>{notice}</div>}
+                <div className="question-actions"><Button variant="ghost" className="action-back" disabled={status !== "idle"} onClick={() => { setMessage(""); setAnswerError(""); setNotice(""); if (step === 0) setScreen("intro"); else setStep(step - 1); }}><ArrowLeft/> Назад</Button><Button className={`action-primary ${!answers[step].trim() ? "action-empty" : ""}`} disabled={status !== "idle"} onClick={next}>{status === "generating" ? "Готовим черновик…" : step === 3 ? "Создать черновик" : "Подтвердить и далее"}<ArrowRight/></Button></div>
+                <div className="gentle-note"><Sparkles size={17}/><p><b>Не нужно идеальных формулировок.</b> Говорите так, как рассказали бы коллеге.</p></div>
+              </div> : vacancy && <div className="result-screen">
+                <div className="question-badge"><span/> ФИНАЛЬНЫЙ ЭТАП</div><h2>Ваш черновик <em>готов.</em></h2><p className="question-hint">Проверьте и дополните описание перед использованием.</p>
+                <div className="result-box"><div className="result-heading"><div><FileText size={19}/><b>Описание вакансии</b></div><Button variant="outline" className="copy-button" onClick={copy}><Clipboard/>{copied ? "Скопировано" : "Скопировать"}</Button></div><label className="sr-only" htmlFor="vacancy">Текст вакансии</label><textarea id="vacancy" value={vacancy.vacancy_text} onChange={e => { setVacancy({ ...vacancy, vacancy_text: e.target.value }); setCopied(false); }}/></div>
+                {message && <div className="feedback error" role="alert">{message}</div>}
+                <div className="result-missing"><b>Что ещё стоит уточнить</b><p>{vacancy.missing_information.length ? vacancy.missing_information.join(" · ") : "Проверьте черновик перед использованием."}</p></div>
+                <div className="result-actions"><Button variant="ghost" className="action-back" onClick={() => openAnswer(3)}><ArrowLeft/> К ответам</Button><Button variant="outline" onClick={reset}><RotateCcw/> Начать заново</Button></div>
+              </div>}
+            </section>
+            <aside className="review-panel" aria-label="Прогресс и ответы">
+              <div className="review-header"><div><div className="eyebrow-label">ВАШ ПРОГРЕСС</div><h2>Шаг за шагом</h2><p>Всё важное — здесь.</p></div><div className="progress-ring" role="progressbar" aria-label="Подтверждено ответов" aria-valuemin={0} aria-valuemax={4} aria-valuenow={count}><svg viewBox="0 0 100 100" aria-hidden="true"><circle className="progress-track" cx="50" cy="50" r="43"/><circle className="progress-value" cx="50" cy="50" r="43" strokeDasharray={`${count / 4 * 270.18} 270.18`}/></svg><div><b>{count}<small>/4</small></b></div></div></div>
+              <div className="review-divider"/>
+              <div className="review-title"><b>Ответы</b><span>{count} ИЗ 4</span></div>
+              <div className="review-list">{questions.map((q, i) => <div className={`review-item ${screen === "wizard" && step === i ? "current" : ""}`} key={q.title}><div className={`review-number ${confirmed[i] ? "done" : ""}`}>{confirmed[i] ? <Check size={14}/> : String(i + 1).padStart(2, "0")}</div><div className="review-content"><b>{["Ежедневные задачи", "Текущий проект", "Ближайшие полгода", "Инструменты и знания"][i]}</b><p>{confirmed[i] ? answers[i] : screen === "wizard" && step === i ? "Текущий вопрос" : "Пока не заполнено"}</p>{confirmed[i] && <button className="edit-answer" disabled={status !== "idle"} onClick={() => openAnswer(i)}><PenLine size={12}/> Изменить</button>}</div></div>)}</div>
+              <div className="missing-card"><span className="missing-icon"><Sparkles size={17}/></span><div><b>Чего пока не хватает</b><p>{screen === "result" && vacancy ? (vacancy.missing_information.length ? vacancy.missing_information.join(" · ") : "Проверьте черновик перед использованием.") : count === 4 ? "Все ответы подтверждены. Проверьте черновик." : `Ещё ${4 - count} ${4 - count === 1 ? "ответ" : 4 - count < 5 ? "ответа" : "ответов"} до черновика.`}</p></div></div>
+              <p className="review-foot">Сначала факты. Остальное можно добавить позже.</p>
+            </aside>
+          </div>
+          <footer className="page-footer"><span>ИСКРА ДЛЯ ВАШЕЙ КОМАНДЫ</span><span>СОЗДАНО С ЗАБОТОЙ О ЛЮДЯХ ✳</span></footer>
+        </main>
+      </div>
+    </div>
+  );
 }
