@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, ArrowRight, Check, CheckCircle2, Clipboard, FileText, Mic, RotateCcw, Sparkles, Square, Plus, PenLine, AudioLines, CircleAlert } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, CheckCircle2, Clipboard, FileText, Mic, RotateCcw, Sparkles, Square, Plus, BriefcaseBusiness, Settings, PenLine, AudioLines, CircleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const questions = [
@@ -117,6 +117,8 @@ export default function Home() {
         <div className="brand"><span className="brand-mark" aria-hidden="true"><Sparkles size={20}/></span><span>искра<span className="brand-period">.</span></span></div>
         <div className="nav-caption">Меню</div>
         <div className="nav-item selected" aria-current="page"><span>Создать вакансию</span><Plus size={17}/></div>
+        <button type="button" className="nav-item nav-demo" disabled aria-label="Вакансии — демонстрационный раздел"><BriefcaseBusiness size={17}/><span>Вакансии</span><small>Демо</small></button>
+        <button type="button" className="nav-item nav-demo" disabled aria-label="Настройки — демонстрационный раздел"><Settings size={17}/><span>Настройки</span><small>Демо</small></button>
       </nav>
       <div className="app-main">
         <main className="workspace">
