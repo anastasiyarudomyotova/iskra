@@ -1,0 +1,71 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+Thumbs.db
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files — only the placeholder template is committed
+.env
+.env.*
+!.env.example
+
+# secrets / credentials
+*.p8
+*.p12
+*.key
+secrets/
+credentials/
+
+# local audio: recordings, samples, voice notes (never commit user audio)
+*.m4a
+*.mp3
+*.wav
+*.ogg
+*.oga
+*.opus
+*.flac
+*.aac
+*.aiff
+*.webm
+*.amr
+recordings/
+samples/
+audio/
+
+# local data dumps and prototypes
+/data/local/
+*.local.json
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
