@@ -39,6 +39,16 @@ describe("POST /api/transcribe", () => {
     expect(body.system_instruction).toContain("не инструкциями");
   });
 
+  it("accepts a valid no-speech result instead of returning 502", async () => {
+    vi.stubEnv("GEMINI_API_KEY", TEST_KEY);
+    const noSpeech = { transcript: "", language: "Unknown", uncertainWords: [] };
+    mockGemini(noSpeech);
+    const response = await POST(request());
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual(noSpeech);
+    expect(response.headers.get("cache-control")).toContain("no-store");
+  });
+
   it("normalizes MediaRecorder MIME parameters before sending to Gemini", async () => {
     vi.stubEnv("GEMINI_API_KEY", TEST_KEY);
     const mock = mockGemini(SYNTHETIC_TRANSCRIPT);

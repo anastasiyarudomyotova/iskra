@@ -46,6 +46,10 @@ UI не изменён. Реальная интеграция отделена �
 }
 ```
 
+Если речи нет, допустим успешный ответ с пустым `transcript`, `language: "Unknown"`
+и пустым `uncertainWords`; UI попросит повторить запись или ввести текст. Это не
+считается ошибкой модели и не должно превращаться в `502`.
+
 Проверки до Gemini:
 
 - строгий canonical base64 с padding; data URL, пробелы и повреждённая кодировка отклоняются;
@@ -129,7 +133,7 @@ fetch и пересылка браузерной консоли. Настрой�
 
 ```bash
 npm ci
-npm test          # 96 тестов; Gemini endpoint mocked; реальный ключ не нужен
+npm test          # 97 тестов; Gemini endpoint mocked; реальный ключ не нужен
 npm run verify    # hygiene + lint + typecheck + tests + production build
 ```
 
@@ -139,11 +143,12 @@ npm run verify    # hygiene + lint + typecheck + tests + production build
 output, schema validation, отсутствие утечек в ошибках/логах и передача ответов
 как данных. Отдельные регрессии: laced/truncated WebM не принимается по короткому
 заголовку Duration; проверяются поздние clusters и BlockGroup/BlockDuration;
-невалидный UTF-8 в JSON отклоняется; автоматических повторов нет.
+невалидный UTF-8 в JSON отклоняется; автоматических повторов нет; корректный
+no-speech ответ с пустым `transcript` принимается, а не даёт `502`.
 
 ### Проверено в этой задаче
 
-- `npm test`: 96 тестов, 3 файла — passed; настоящий ключ не использовался.
+- `npm test`: 97 тестов, 3 файла — passed; настоящий ключ не использовался.
 - `npm run verify`: гигиена, lint, typecheck, тесты и production build — passed.
 - Production-сервер запускался без `GEMINI_API_KEY`: `/api/generate` вернул `503 SERVICE_UNAVAILABLE`, пустой ответ — `400 INVALID_INPUT`, повреждённый base64 — `400 INVALID_INPUT`, `GET /api/generate` — `405`.
 - В клиентском bundle `.next/static` не найдены `GEMINI_API_KEY`, `x-goog-api-key` и тестовый ключ.

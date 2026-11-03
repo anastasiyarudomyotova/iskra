@@ -248,7 +248,7 @@ describe.each(["transcribe", "generate"] as const)(
       { wrong: true },
       { vacancy: { ...SYNTHETIC_VACANCY, responsibilities: [42] } },
       { vacancy: { ...SYNTHETIC_VACANCY, unexpected: "reject" } },
-      { transcript: "", language: "Russian", uncertainWords: [] },
+      { transcript: null, language: "Russian", uncertainWords: [] },
       {
         transcript: "вымышленный текст",
         language: "Russian",

@@ -55,7 +55,10 @@ export const generateRequestSchema = z.strictObject({
 });
 
 export const transcriptSchema = z.strictObject({
-  transcript: shortText(12_000),
+  // The prompt explicitly returns an empty transcript when no speech is present.
+  // Treat that as a valid no-speech result, not as malformed model output; the UI
+  // already asks the user to retry or type the answer when transcript is empty.
+  transcript: z.string().trim().max(12_000),
   language: shortText(80),
   uncertainWords: textList(100, 200),
 });
