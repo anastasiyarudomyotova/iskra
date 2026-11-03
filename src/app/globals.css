@@ -360,3 +360,8 @@ body, .app-shell { background: #fbfbfb; color: #171717; }
   .app-nav { flex-wrap: wrap; row-gap: 4px; }
   .nav-demo { display: flex; width: calc(50% - 4px); height: 34px; padding: 0 8px; gap: 6px; font-size: 11px; }
 }
+
+/* Align the result heading and progress labels with their indicators. */
+.result-screen .question-top h2 { margin-top: 0; }
+.question-screen .question-hint { margin-top: 6px; }
+.review-content > b { display: flex; align-items: center; min-height: 28px; line-height: 1.3; }
