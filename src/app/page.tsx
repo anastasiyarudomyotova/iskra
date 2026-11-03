@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, ArrowRight, Check, CheckCircle2, Clipboard, FileText, Mic, RotateCcw, Sparkles, Square, LayoutGrid, BriefcaseBusiness, UsersRound, HelpCircle, ChevronRight, PenLine, AudioLines, CircleAlert } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, CheckCircle2, Clipboard, FileText, Mic, RotateCcw, Sparkles, Square, BriefcaseBusiness, PenLine, AudioLines, CircleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const questions = [
@@ -113,18 +113,11 @@ export default function Home() {
   };
   return (
     <div className="app-shell">
-      <aside className="app-nav" aria-label="Навигация по мастеру">
+      <nav className="app-nav" aria-label="Основной раздел">
         <div className="brand"><span className="brand-mark" aria-hidden="true"><Sparkles size={20}/></span><span>искра<span className="brand-period">.</span></span></div>
-        <div className="nav-caption">РАБОЧЕЕ ПРОСТРАНСТВО</div>
-        <div className="nav-item muted"><LayoutGrid size={18}/><span>Обзор</span></div>
-        <div className="nav-item selected"><BriefcaseBusiness size={18}/><span>Вакансии</span><span className="nav-dot"/></div>
-        <div className="nav-item muted"><UsersRound size={18}/><span>Кандидаты</span></div>
-        <div className="nav-spacer"/>
-        <div className="nav-note"><div className="nav-note-icon"><Sparkles size={17}/></div><b>Больше времени<br/>для людей.</b><p>Искра помогает сосредоточиться на главном.</p></div>
-        <div className="nav-help"><HelpCircle size={17}/><span>Помощник в найме</span></div>
-      </aside>
+        <div className="nav-item selected" aria-current="page"><BriefcaseBusiness size={18}/><span>Вакансии</span></div>
+      </nav>
       <div className="app-main">
-        <header className="app-header"><div className="header-crumb">Вакансии <ChevronRight size={14}/> <strong>Новая вакансия</strong></div><div className="header-right"><span className="header-label">РАБОЧЕЕ ПРОСТРАНСТВО</span><div className="avatar">И</div></div></header>
         <main className="workspace">
           <div className="workspace-heading"><div><div className="eyebrow-label"><span/> МАСТЕР ВАКАНСИИ</div><h1>Создание вакансии<span className="heading-spark"> ✳</span></h1><p>Из ваших слов — в понятное описание роли.</p></div><div className="workspace-tag"><span/> ЧЕРНОВИК</div></div>
           {mock && <div className="mock-banner">Демонстрационный режим: ответы обрабатываются локально, Gemini не используется.</div>}
@@ -183,7 +176,6 @@ export default function Home() {
               <p className="review-foot">Сначала факты. Остальное можно добавить позже.</p>
             </aside>
           </div>
-          <footer className="page-footer"><span>ИСКРА ДЛЯ ВАШЕЙ КОМАНДЫ</span><span>СОЗДАНО С ЗАБОТОЙ О ЛЮДЯХ ✳</span></footer>
         </main>
       </div>
     </div>
