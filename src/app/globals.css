@@ -329,3 +329,8 @@ body, .app-shell { background: #f1f2f7; color: #171717; }
   }
   .workspace { padding: 12px max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)); }
 }
+
+/* Gradient for primary actions; the empty-answer state stays neutral. */
+.action-primary:not(.action-empty), .action-primary:not(.action-empty):hover {
+  background: linear-gradient(0.254turn, rgba(255, 113, 0, 1) 0%, rgba(255, 67, 0, 1) 100%);
+}

@@ -127,7 +127,6 @@ export default function Home() {
                 <div className="intro-orbit" aria-hidden="true"><span className="orbit-line one"/><span className="orbit-line two"/><span className="orbit-core"><Sparkles size={38} strokeWidth={1.4}/></span><span className="orbit-star">✳</span></div>
                 <h2>Хорошая вакансия<br/><em>начинается с разговора</em></h2>
                 <p className="intro-lead">Мы зададим 4 вопроса, на которые можно ответить голосом. Искра поможет собрать ваши ответы в черновик вакансии</p>
-                <div className="intro-steps"><div><span hidden>02</span><p><b>Голосом, в формате реального интервью — с разбором ответов</b></p></div></div>
                 <Button className="action-primary" onClick={() => setScreen("wizard")}>Начать создание <ArrowRight/></Button>
                 <p className="intro-privacy" hidden></p>
               </div> : screen === "wizard" ? <div className="question-screen">
