@@ -119,7 +119,7 @@ export default function Home() {
       </nav>
       <div className="app-main">
         <main className="workspace">
-          <div className="workspace-heading"><div><div className="eyebrow-label" hidden><span/></div><h1>Создание вакансии<span className="heading-spark"> ✳</span></h1><p>Мы зададим 4 вопроса, на которые можно ответить голосом, и сформируем текст вакансии</p></div><div className="workspace-tag"><span/> ЧЕРНОВИК</div></div>
+          <div className="workspace-heading"><div className="workspace-tag"><span/> ЧЕРНОВИК</div></div>
           {mock && <div className="mock-banner">Демонстрационный режим: ответы обрабатываются локально, Gemini не используется</div>}
           <div className="workspace-grid">
             <section className="main-panel" aria-label={screen === "result" ? "Черновик вакансии" : "Мастер вопросов"}>
@@ -127,7 +127,7 @@ export default function Home() {
                 <div className="intro-kicker" hidden><Sparkles size={16}/></div>
                 <div className="intro-orbit" aria-hidden="true"><span className="orbit-line one"/><span className="orbit-line two"/><span className="orbit-core"><Sparkles size={38} strokeWidth={1.4}/></span><span className="orbit-star">✳</span></div>
                 <h2>Хорошая вакансия<br/><em>начинается с разговора</em></h2>
-                <p className="intro-lead">Расскажите о задачах и проектах будущего сотрудника. Искра поможет собрать ваши ответы в черновик вакансии</p>
+                <p className="intro-lead">Мы зададим 4 вопроса, на которые можно ответить голосом. Искра поможет собрать ваши ответы в черновик вакансии</p>
                 <div className="intro-steps"><div><span hidden>02</span><p><b>Голосом, в формате реального интервью — с разбором ответов</b></p></div></div>
                 <Button className="action-primary" onClick={() => setScreen("wizard")}>Начать создание <ArrowRight/></Button>
                 <p className="intro-privacy" hidden></p>
@@ -169,7 +169,6 @@ export default function Home() {
               <div className="review-divider"/>
               <div className="review-title"><b>Ответы</b><span>{count} ИЗ 4</span></div>
               <div className="review-list">{questions.map((q, i) => <div className={`review-item ${screen === "wizard" && step === i ? "current" : ""}`} key={q.title}><div className={`review-number ${confirmed[i] ? "done" : ""}`}>{confirmed[i] ? <Check size={14}/> : String(i + 1).padStart(2, "0")}</div><div className="review-content"><b>{["Ежедневные задачи", "Текущий проект", "Ближайшие полгода", "Инструменты и знания"][i]}</b><p>{confirmed[i] ? answers[i] : screen === "wizard" && step === i ? "Текущий вопрос" : "Пока не заполнено"}</p>{confirmed[i] && <button className="edit-answer" disabled={status !== "idle"} onClick={() => openAnswer(i)}><PenLine size={12}/> Изменить</button>}</div></div>)}</div>
-              <div className="missing-card"><span className="missing-icon"><Sparkles size={17}/></span><div><b>Чего пока не хватает</b><p>{screen === "result" && vacancy ? (vacancy.missing_information.length ? vacancy.missing_information.join(" · ") : "Проверьте черновик перед использованием") : count === 4 ? "Все ответы подтверждены. Проверьте черновик" : `Ещё ${4 - count} ${4 - count === 1 ? "ответ" : 4 - count < 5 ? "ответа" : "ответов"} до черновика`}</p></div></div>
               <p className="review-foot" hidden></p>
             </aside>
           </div>
