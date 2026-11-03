@@ -255,3 +255,18 @@ body, .app-shell { background: #f1f2f7; color: #171717; }
 .processing-symbol span { background: #c94e00; }
 .answer-footer { justify-content: flex-end; }
 .voice-privacy:empty { display: none; }
+
+/* Targeted adjustments: keep the existing shell and voice component. */
+.orbit-core { background: #ff9e53; }
+.intro-steps > div { background: #f1f2f7; }
+.intro-steps > div b { color: #4c4e55; }
+.question-top { align-items: flex-start; margin-bottom: 0; }
+.question-top h2 { flex: 1; min-width: 0; }
+.question-top .question-badge { flex-shrink: 0; margin-top: 10px; white-space: nowrap; }
+.record-timer { display: inline-block; margin-top: 6px; color: #9b4200; font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.main-panel { min-height: 0; }
+@media (max-width: 380px) {
+  .question-top { gap: 8px; }
+  .question-top h2 { font-size: clamp(20px, 6.5vw, 25px); }
+  .question-top .question-badge { font-size: 9px; margin-top: 7px; }
+}

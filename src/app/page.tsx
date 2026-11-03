@@ -128,22 +128,20 @@ export default function Home() {
                 <div className="intro-orbit" aria-hidden="true"><span className="orbit-line one"/><span className="orbit-line two"/><span className="orbit-core"><Sparkles size={38} strokeWidth={1.4}/></span><span className="orbit-star">✳</span></div>
                 <h2>Хорошая вакансия<br/><em>начинается с разговора</em></h2>
                 <p className="intro-lead">Расскажите о задачах и проектах будущего сотрудника. Искра поможет собрать ваши ответы в черновик вакансии</p>
-                <div className="intro-steps"><div><span hidden>01</span><p><b>Ответьте на 4 вопроса</b></p></div><div><span hidden>02</span><p><b>Отвечайте голосом или текстом</b></p></div></div>
+                <div className="intro-steps"><div><span hidden>02</span><p><b>Голосом, в формате реального интервью — с разбором ответов</b></p></div></div>
                 <Button className="action-primary" onClick={() => setScreen("wizard")}>Начать создание <ArrowRight/></Button>
                 <p className="intro-privacy" hidden></p>
               </div> : screen === "wizard" ? <div className="question-screen">
-                <div className="question-top"><div className="question-badge"><span/> ВОПРОС {String(step + 1).padStart(2, "0")} <span className="badge-muted">/ 04</span></div><span className="question-category">{["ЕЖЕДНЕВНЫЕ ЗАДАЧИ", "ТЕКУЩИЙ ПРОЕКТ", "БЛИЖАЙШИЕ ПОЛГОДА", "ИНСТРУМЕНТЫ И ЗНАНИЯ"][step]}</span></div>
-                <h2 key={step}>{questions[step].title}</h2><p className="question-hint">{questions[step].hint}</p>
-                <div className="input-panel">
+                <div className="question-top"><h2 key={step}>{questions[step].title}</h2><div className="question-badge"><span/> ВОПРОС {String(step + 1).padStart(2, "0")} <span className="badge-muted">/ 04</span></div></div>
+                <p className="question-hint">{questions[step].hint}</p>
                   <div className="input-heading" hidden><div className="input-icon"><AudioLines size={20}/></div><div><h3></h3><p></p></div><span className="input-label">ГОЛОС ИЛИ ТЕКСТ</span></div>
                   <div className={`voice-box ${status === "recording" ? "voice-active" : status === "transcribing" ? "voice-processing" : ""}`}>
-                    <div className="voice-topline"><span>ГОЛОСОВОЙ ОТВЕТ</span><span>{status === "recording" ? `00:${String(elapsed).padStart(2, "0")} / 01:00` : "ДО 60 СЕКУНД"}</span></div>
                     <div className="voice-body">
                       <div className="signal-art" aria-hidden="true">
                         <svg className="signal-arcs" viewBox="0 0 180 120" fill="none"><path d="M27 89C7 60 23 22 57 14"/><path d="M153 89c20-29 4-67-30-75"/><path d="M40 82C28 61 37 37 57 29"/><path d="M140 82c12-21 3-45-17-53"/><circle cx="90" cy="60" r="36"/></svg>
                         {status === "recording" ? <div className="waveform"><span/><span/><span/><span/><span/><span/><span/><span/><span/><span/><span/></div> : status === "transcribing" ? <div className="processing-symbol"><span/><span/><span/></div> : <div className="signal-center">{notice.includes("Текст готов") || notice.startsWith("Проверьте слова") ? <Check size={23}/> : <Mic size={22}/>}</div>}
                       </div>
-                      <div className="voice-copy"><div className="voice-status" role="status" aria-live="polite"><span className="voice-indicator"/><b>{status === "recording" ? "Идёт запись" : status === "transcribing" ? "Расшифровываем запись" : notice.includes("Текст готов") || notice.startsWith("Проверьте слова") ? "Расшифровка готова" : voiceError && message ? "Не удалось обработать запись" : "Готовы записать ответ"}</b></div><p>{status === "recording" ? "Говорите свободно — мы вас слушаем" : status === "transcribing" ? "Превращаем ваши слова в текст. Это может занять немного времени" : notice.includes("Текст готов") || notice.startsWith("Проверьте слова") ? "Проверьте текст ниже и при необходимости измените его" : "Нажмите на кнопку и расскажите о роли своими словами"}</p>
+                      <div className="voice-copy"><div className="voice-status" role="status" aria-live="polite"><span className="voice-indicator"/><b>{status === "recording" ? "Идёт запись" : status === "transcribing" ? "Расшифровываем запись" : notice.includes("Текст готов") || notice.startsWith("Проверьте слова") ? "Расшифровка готова" : voiceError && message ? "Не удалось обработать запись" : "Готовы записать ответ"}</b></div>{status === "recording" && <span className="record-timer" aria-label={`Длительность записи: ${elapsed} секунд`}>{`00:${String(elapsed).padStart(2, "0")} / 01:00`}</span>}<p>{status === "recording" ? "Говорите свободно — мы вас слушаем" : status === "transcribing" ? "Превращаем ваши слова в текст. Это может занять немного времени" : notice.includes("Текст готов") || notice.startsWith("Проверьте слова") ? "Проверьте текст ниже и при необходимости измените его" : "Нажмите на кнопку и расскажите о роли своими словами"}</p>
                         <div className="voice-actions"><Button variant="outline" className="voice-button" disabled={status === "transcribing" || status === "generating"} onClick={() => status === "recording" ? stopRecording() : void startRecording()}>{status === "recording" ? <><Square size={16}/> Завершить запись</> : <><Mic size={16}/> {voiceError && message ? "Попробовать снова" : "Записать ответ"}</>}</Button>{status === "recording" && <Button variant="ghost" className="cancel-button" onClick={() => stopRecording(true)}>Отменить</Button>}</div>
                       </div>
                     </div>
@@ -153,7 +151,6 @@ export default function Home() {
                   <label className="text-label" htmlFor="answer">{notice && !message ? "Текст ответа · можно редактировать" : "Текст ответа"}</label>
                   <textarea id="answer" aria-invalid={!!answerError} aria-describedby={answerError ? "answer-error" : undefined} value={answers[step]} onChange={e => changeAnswer(e.target.value)} placeholder={questions[step].example} disabled={status !== "idle"}/>
                   <div className="answer-footer"><span id="answer-hint" hidden></span><span>{answers[step].length} символов</span></div>
-                </div>
                 {answerError && <div id="answer-error" className="feedback error" role="alert"><CircleAlert size={17}/>{answerError}</div>}
                 {message && <div className="feedback error" role="alert"><CircleAlert size={17}/><span>{message}</span></div>}
                 {notice && <div className="feedback success" role="status"><CheckCircle2 size={17}/>{notice}</div>}
