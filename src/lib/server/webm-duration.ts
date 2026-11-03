@@ -131,23 +131,20 @@ export function webmBlockDuration(bytes: Uint8Array): number | undefined {
     }
   }
 
-  try {
-    walk(0, bytes.length, 0);
-    if (!blocks.length) return undefined;
-    let duration = 0;
-    for (const block of blocks) {
-      const frameTicks =
-        block.duration ??
-        (defaults.get(block.track) ?? 120_000_000) / timecodeScale;
-      const seconds =
-        ((block.cluster + block.relative + frameTicks) * timecodeScale) /
-        1_000_000_000;
-      if (!Number.isFinite(seconds)) throw new Error("Invalid timestamp");
-      duration = Math.max(duration, seconds);
-    }
-    return duration;
-  } catch {
-    // The caller turns an unreadable/unsupported container into a safe 422.
-    return undefined;
+  // Parse failures must not be downgraded to "duration unknown": a short
+  // header Duration could otherwise hide laced/truncated long audio.
+  walk(0, bytes.length, 0);
+  if (!blocks.length) return undefined;
+  let duration = 0;
+  for (const block of blocks) {
+    const frameTicks =
+      block.duration ??
+      (defaults.get(block.track) ?? 120_000_000) / timecodeScale;
+    const seconds =
+      ((block.cluster + block.relative + frameTicks) * timecodeScale) /
+      1_000_000_000;
+    if (!Number.isFinite(seconds)) throw new Error("Invalid timestamp");
+    duration = Math.max(duration, seconds);
   }
+  return duration;
 }

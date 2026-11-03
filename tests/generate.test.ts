@@ -127,6 +127,19 @@ describe("POST /api/generate", () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
+  it("rejects invalid UTF-8 in a JSON body without echoing it", async () => {
+    const response = await POST(
+      new Request("http://localhost/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: new Uint8Array([0x7b, 0x22, 0xff, 0x22, 0x7d]),
+      }),
+    );
+    expect(response.status).toBe(400);
+    expect((await response.json()).code).toBe("INVALID_JSON");
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
   it("returns a safe 503 without a key and never calls Gemini", async () => {
     const response = await POST(request());
     expect(response.status).toBe(503);

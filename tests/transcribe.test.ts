@@ -145,6 +145,66 @@ describe("POST /api/transcribe", () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
+  it("rejects laced WebM even when a short header duration is present", async () => {
+    const bytes = syntheticWebm({ headerSeconds: 1, lace: true });
+    const response = await POST(
+      request({
+        audioBase64: bytes.toString("base64"),
+        mimeType: "audio/webm",
+      }),
+    );
+    expect(response.status).toBe(422);
+    expect((await response.json()).code).toBe("INVALID_AUDIO");
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("rejects truncated WebM instead of trusting its short header duration", async () => {
+    const bytes = syntheticWebm({ headerSeconds: 1, truncate: true });
+    const response = await POST(
+      request({
+        audioBase64: bytes.toString("base64"),
+        mimeType: "audio/webm",
+      }),
+    );
+    expect(response.status).toBe(422);
+    expect((await response.json()).code).toBe("INVALID_AUDIO");
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("checks later WebM clusters, not only the first block", async () => {
+    const bytes = syntheticWebm({
+      headerSeconds: 1,
+      blockMilliseconds: 0,
+      additionalClusterMilliseconds: [61_000],
+    });
+    const response = await POST(
+      request({
+        audioBase64: bytes.toString("base64"),
+        mimeType: "audio/webm",
+      }),
+    );
+    expect(response.status).toBe(422);
+    expect((await response.json()).code).toBe("AUDIO_TOO_LONG");
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("uses BlockGroup/BlockDuration when present", async () => {
+    const bytes = syntheticWebm({
+      headerSeconds: 1,
+      blockMilliseconds: 60_000,
+      blockGroupDurationMilliseconds: 2000,
+    });
+    const response = await POST(
+      request({
+        audioBase64: bytes.toString("base64"),
+        mimeType: "audio/webm",
+      }),
+    );
+    expect(response.status).toBe(422);
+    expect((await response.json()).code).toBe("AUDIO_TOO_LONG");
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
   it("enforces the body cap on chunked requests without Content-Length", async () => {
     let cancelled = false;
     const stream = new ReadableStream<Uint8Array>({

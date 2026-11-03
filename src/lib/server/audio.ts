@@ -86,7 +86,11 @@ export async function validateAudio(
     // are at most 120 ms; the timestamp reader uses that bound when necessary.
     if (!metadata.format.codec?.toLowerCase().includes("opus"))
       throw ERRORS.audioInvalid();
-    durations.push(webmBlockDuration(bytes));
+    try {
+      durations.push(webmBlockDuration(bytes));
+    } catch {
+      throw ERRORS.audioInvalid();
+    }
   }
   const known = durations.filter(
     (value): value is number =>

@@ -93,7 +93,10 @@ export function syntheticWebm(
   options: {
     headerSeconds?: number;
     blockMilliseconds?: number;
+    additionalClusterMilliseconds?: number[];
+    blockGroupDurationMilliseconds?: number;
     lace?: boolean;
+    truncate?: boolean;
   } = {},
 ): Buffer {
   const header = element(
@@ -147,17 +150,37 @@ export function syntheticWebm(
     ),
   );
   const blockHeader = Buffer.from([0x81, 0, 0, options.lace ? 0x02 : 0]);
-  const cluster = element(
-    0x1f43b675,
-    Buffer.concat([
-      numberElement(0xe7, options.blockMilliseconds ?? 0),
-      element(0xa3, Buffer.concat([blockHeader, Buffer.from([0xfc])])),
-    ]),
-  );
-  return Buffer.concat([
+  const blockPayload = Buffer.concat([blockHeader, Buffer.from([0xfc])]);
+  const firstBlock =
+    options.blockGroupDurationMilliseconds === undefined
+      ? element(0xa3, blockPayload)
+      : element(
+          0xa0,
+          Buffer.concat([
+            element(0xa1, blockPayload),
+            numberElement(0x9b, options.blockGroupDurationMilliseconds),
+          ]),
+        );
+  const cluster = (milliseconds: number, block: Buffer) =>
+    element(
+      0x1f43b675,
+      Buffer.concat([numberElement(0xe7, milliseconds), block]),
+    );
+  const bytes = Buffer.concat([
     header,
-    element(0x18538067, Buffer.concat([info, tracks, cluster])),
+    element(
+      0x18538067,
+      Buffer.concat([
+        info,
+        tracks,
+        cluster(options.blockMilliseconds ?? 0, firstBlock),
+        ...(options.additionalClusterMilliseconds ?? []).map((milliseconds) =>
+          cluster(milliseconds, element(0xa3, blockPayload)),
+        ),
+      ]),
+    ),
   ]);
+  return options.truncate ? bytes.subarray(0, bytes.length - 3) : bytes;
 }
 
 export function interactionResponse(output: unknown, status = "completed") {

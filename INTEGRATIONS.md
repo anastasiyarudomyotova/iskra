@@ -129,18 +129,21 @@ fetch и пересылка браузерной консоли. Настрой�
 
 ```bash
 npm ci
-npm test          # 90 тестов; Gemini endpoint mocked; реальный ключ не нужен
+npm test          # 96 тестов; Gemini endpoint mocked; реальный ключ не нужен
 npm run verify    # hygiene + lint + typecheck + tests + production build
 ```
 
 Тестовые PCM WAV и минимальный WebM генерируются в памяти. Бинарных записей в
 репозитории нет. Покрыты контракт, лимиты, MIME/base64, длительность, отсутствие
-ключа, 429/503, сеть, таймаут, malformed output, schema validation, отсутствие
-утечек в ошибках/логах и передача ответов как данных.
+ключа, 429/503, сеть, таймаут заголовков и тела ответа провайдера, malformed
+output, schema validation, отсутствие утечек в ошибках/логах и передача ответов
+как данных. Отдельные регрессии: laced/truncated WebM не принимается по короткому
+заголовку Duration; проверяются поздние clusters и BlockGroup/BlockDuration;
+невалидный UTF-8 в JSON отклоняется; автоматических повторов нет.
 
 ### Проверено в этой задаче
 
-- `npm test`: 90 тестов, 3 файла — passed; настоящий ключ не использовался.
+- `npm test`: 96 тестов, 3 файла — passed; настоящий ключ не использовался.
 - `npm run verify`: гигиена, lint, typecheck, тесты и production build — passed.
 - Production-сервер запускался без `GEMINI_API_KEY`: `/api/generate` вернул `503 SERVICE_UNAVAILABLE`, пустой ответ — `400 INVALID_INPUT`, повреждённый base64 — `400 INVALID_INPUT`, `GET /api/generate` — `405`.
 - В клиентском bundle `.next/static` не найдены `GEMINI_API_KEY`, `x-goog-api-key` и тестовый ключ.

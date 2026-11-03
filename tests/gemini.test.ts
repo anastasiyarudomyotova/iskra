@@ -44,6 +44,35 @@ describe("Gemini transport", () => {
     await assertion;
   });
 
+  it("times out a stalled provider response body and does not retry", async () => {
+    vi.useFakeTimers();
+    vi.stubEnv("GEMINI_API_KEY", TEST_KEY);
+    const mock = vi.fn<typeof fetch>(async (_url, init) => {
+      const stream = new ReadableStream<Uint8Array>({
+        start(controller) {
+          init?.signal?.addEventListener(
+            "abort",
+            () => controller.error(init.signal?.reason),
+            { once: true },
+          );
+        },
+      });
+      return new Response(stream, {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    });
+    vi.stubGlobal("fetch", mock);
+    const pending = call();
+    const assertion = expect(pending).rejects.toMatchObject({
+      status: 504,
+      code: "UPSTREAM_TIMEOUT",
+    });
+    await vi.advanceTimersByTimeAsync(LIMITS.geminiTimeoutMs);
+    await assertion;
+    expect(mock).toHaveBeenCalledOnce();
+  });
+
   it.each(["0", "99999", "not-a-date"])(
     "bounds invalid or excessive Retry-After: %s",
     async (value) => {
