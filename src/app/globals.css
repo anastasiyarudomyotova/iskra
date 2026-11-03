@@ -334,3 +334,21 @@ body, .app-shell { background: #fbfbfb; color: #171717; }
 .action-primary:not(.action-empty), .action-primary:not(.action-empty):hover {
   background: linear-gradient(0.254turn, rgba(255, 113, 0, 1) 0%, rgba(255, 67, 0, 1) 100%);
 }
+
+/* Keep the intro as tall as the question layout without fixing its height. */
+.intro-panel { display: grid; }
+.intro-panel > .intro-screen, .intro-panel > .question-screen { grid-area: 1 / 1; }
+.intro-panel > .question-screen { visibility: hidden; }
+.intro-panel > .intro-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.intro-panel > .intro-screen > * { flex-shrink: 0; }
+
+/* Compact progress list and identify the existing navigation. */
+.nav-caption { display: block; margin: 30px 8px 8px; color: #73757a; }
+.nav-item.selected { margin-top: 0; justify-content: space-between; }
+.review-list { margin-top: 0; }
+.review-item { border-bottom: 0; padding: 8px 0; }
+.review-item:last-child { padding-bottom: 0; }
+@media (max-width: 820px) {
+  .nav-caption { display: none; }
+  .nav-item.selected { gap: 8px; }
+}

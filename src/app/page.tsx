@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, ArrowRight, Check, CheckCircle2, Clipboard, FileText, Mic, RotateCcw, Sparkles, Square, BriefcaseBusiness, PenLine, AudioLines, CircleAlert } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, CheckCircle2, Clipboard, FileText, Mic, RotateCcw, Sparkles, Square, Plus, PenLine, AudioLines, CircleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const questions = [
@@ -115,21 +115,23 @@ export default function Home() {
     <div className="app-shell">
       <nav className="app-nav" aria-label="Основной раздел">
         <div className="brand"><span className="brand-mark" aria-hidden="true"><Sparkles size={20}/></span><span>искра<span className="brand-period">.</span></span></div>
-        <div className="nav-item selected" aria-current="page"><BriefcaseBusiness size={18}/><span>Вакансии</span></div>
+        <div className="nav-caption">Меню</div>
+        <div className="nav-item selected" aria-current="page"><span>Создать вакансию</span><Plus size={17}/></div>
       </nav>
       <div className="app-main">
         <main className="workspace">
           {mock && <div className="mock-banner">Демонстрационный режим: ответы обрабатываются локально, Gemini не используется</div>}
           <div className="workspace-grid">
-            <section className="main-panel" aria-label={screen === "result" ? "Черновик вакансии" : "Мастер вопросов"}>
-              {screen === "intro" ? <div className="intro-screen">
+            <section className={`main-panel ${screen === "intro" ? "intro-panel" : ""}`} aria-label={screen === "result" ? "Черновик вакансии" : "Мастер вопросов"}>
+              {screen === "intro" && <div className="intro-screen">
                 <div className="intro-kicker" hidden><Sparkles size={16}/></div>
                 <div className="intro-orbit" aria-hidden="true"><span className="orbit-line one"/><span className="orbit-line two"/><span className="orbit-core"><Sparkles size={38} strokeWidth={1.4}/></span><span className="orbit-star">✳</span></div>
                 <h2>Хорошая вакансия<br/><em>начинается с разговора</em></h2>
                 <p className="intro-lead">Мы зададим 4 вопроса, на которые можно ответить голосом. Искра поможет собрать ваши ответы в черновик вакансии</p>
                 <Button className="action-primary" onClick={() => setScreen("wizard")}>Начать создание <ArrowRight/></Button>
                 <p className="intro-privacy" hidden></p>
-              </div> : screen === "wizard" ? <div className="question-screen">
+              </div>}
+              {screen !== "result" ? <div className="question-screen" inert={screen === "intro"} aria-hidden={screen === "intro"}>
                 <div className="question-top"><h2 key={step}>{questions[step].title}</h2><div className="question-badge"><span/> ВОПРОС {String(step + 1).padStart(2, "0")} <span className="badge-muted">/ 04</span></div></div>
                 <p className="question-hint">{questions[step].hint}</p>
                   <div className="input-heading" hidden><div className="input-icon"><AudioLines size={20}/></div><div><h3></h3><p></p></div><span className="input-label">ГОЛОС ИЛИ ТЕКСТ</span></div>
@@ -163,9 +165,8 @@ export default function Home() {
               </div>}
             </section>
             <aside className="review-panel" aria-label="Прогресс и ответы">
-              <div className="review-header"><div><h2>ВАШ ПРОГРЕСС</h2><p>Всё важное — здесь</p></div><div className="progress-ring" role="progressbar" aria-label="Подтверждено ответов" aria-valuemin={0} aria-valuemax={4} aria-valuenow={count}><svg viewBox="0 0 100 100" aria-hidden="true"><circle className="progress-track" cx="50" cy="50" r="43"/><circle className="progress-value" cx="50" cy="50" r="43" strokeDasharray={`${count / 4 * 270.18} 270.18`}/></svg><div><b>{count}<small>/4</small></b></div></div></div>
+              <div className="review-header"><div><h2>Ваш прогресс</h2><p>Всё важное — здесь</p></div><div className="progress-ring" role="progressbar" aria-label="Подтверждено ответов" aria-valuemin={0} aria-valuemax={4} aria-valuenow={count}><svg viewBox="0 0 100 100" aria-hidden="true"><circle className="progress-track" cx="50" cy="50" r="43"/><circle className="progress-value" cx="50" cy="50" r="43" strokeDasharray={`${count / 4 * 270.18} 270.18`}/></svg><div><b>{count}<small>/4</small></b></div></div></div>
               <div className="review-divider"/>
-              <div className="review-title"><b>Ответы</b><span>{count} ИЗ 4</span></div>
               <div className="review-list">{questions.map((q, i) => <div className={`review-item ${screen === "wizard" && step === i ? "current" : ""}`} key={q.title}><div className={`review-number ${confirmed[i] ? "done" : ""}`}>{confirmed[i] ? <Check size={14}/> : String(i + 1).padStart(2, "0")}</div><div className="review-content"><b>{["Ежедневные задачи", "Текущий проект", "Ближайшие полгода", "Инструменты и знания"][i]}</b><p>{confirmed[i] ? answers[i] : screen === "wizard" && step === i ? "Текущий вопрос" : "Пока не заполнено"}</p>{confirmed[i] && <button className="edit-answer" disabled={status !== "idle"} onClick={() => openAnswer(i)}><PenLine size={12}/> Изменить</button>}</div></div>)}</div>
               <p className="review-foot" hidden></p>
             </aside>
