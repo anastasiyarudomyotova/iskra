@@ -299,3 +299,8 @@ body, .app-shell { background: #f1f2f7; color: #171717; }
 @media (min-width: 1101px) and (max-width: 1300px) { .voice-box { min-height: 190px; } }
 .voice-button { max-width: 100%; }
 .voice-button > span { min-width: 0; }
+
+/* Requested button and progress-panel refinements. */
+.action-primary:not(.action-empty), .action-primary:not(.action-empty):hover { color: #fff; }
+.review-item .review-number.done { color: #fff; }
+.review-item:last-child { border-bottom: 0; padding-bottom: 0; }
