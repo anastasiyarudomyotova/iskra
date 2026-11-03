@@ -365,3 +365,5 @@ body, .app-shell { background: #fbfbfb; color: #171717; }
 .result-screen .question-top h2 { margin-top: 0; }
 .question-screen .question-hint { margin-top: 6px; }
 .review-content > b { display: flex; align-items: center; min-height: 28px; line-height: 1.3; }
+/* Center the marker against a title and one-line description, excluding the edit action. */
+.review-number { margin-top: 10.5px; }
