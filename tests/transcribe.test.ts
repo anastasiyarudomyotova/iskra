@@ -7,6 +7,7 @@ import {
   sentBody,
   SYNTHETIC_TRANSCRIPT,
   syntheticWav,
+  syntheticFragmentedMp4,
   syntheticWebm,
   TEST_KEY,
 } from "./fixtures";
@@ -61,6 +62,50 @@ describe("POST /api/transcribe", () => {
     );
     expect(response.status).toBe(200);
     expect(sentBody(mock).input[0].content[0].mime_type).toBe("audio/webm");
+  });
+
+  it.each(["safari-mac", "safari-ios"] as const)("accepts synthetic fragmented MP4 with %s brands", async brand => {
+    vi.stubEnv("GEMINI_API_KEY", TEST_KEY);
+    const mock = mockGemini(SYNTHETIC_TRANSCRIPT);
+    const bytes = syntheticFragmentedMp4(brand);
+    const response = await POST(request({ audioBase64: bytes.toString("base64"), mimeType: "audio/mp4;codecs=mp4a.40.2" }));
+    expect(response.status).toBe(200);
+    expect(sentBody(mock).input[0].content[0].mime_type).toBe("audio/mp4");
+  });
+
+  it("rejects a fragmented file with unrecognized MP4 brands", async () => {
+    vi.stubEnv("GEMINI_API_KEY", TEST_KEY);
+    const response = await POST(request({ audioBase64: syntheticFragmentedMp4("unknown").toString("base64"), mimeType: "audio/mp4" }));
+    expect(response.status).toBe(422);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("rejects fragmented MP4 whose decode timestamps exceed the duration limit", async () => {
+    const bytes = syntheticFragmentedMp4();
+    const offset = bytes.indexOf(Buffer.from("tfdt"));
+    expect(offset).toBeGreaterThan(0);
+    bytes.writeBigUInt64BE(BigInt(65 * 16000), offset + 8);
+    const response = await POST(request({ audioBase64: bytes.toString("base64"), mimeType: "audio/mp4" }));
+    expect(response.status).toBe(422);
+    expect((await response.json()).code).toBe("AUDIO_TOO_LONG");
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("rejects fragmented MP4 containing a video track", async () => {
+    const bytes = syntheticFragmentedMp4();
+    const handler = bytes.indexOf(Buffer.from("soun"));
+    expect(handler).toBeGreaterThan(0);
+    bytes.write("vide", handler, "ascii");
+    const response = await POST(request({ audioBase64: bytes.toString("base64"), mimeType: "audio/mp4" }));
+    expect(response.status).toBe(422);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("rejects a truncated fragmented MP4", async () => {
+    const bytes = syntheticFragmentedMp4().subarray(0, 400);
+    const response = await POST(request({ audioBase64: bytes.toString("base64"), mimeType: "audio/mp4" }));
+    expect(response.status).toBe(422);
+    expect(fetch).not.toHaveBeenCalled();
   });
 
   it.each([

@@ -22,8 +22,12 @@ function containerMatches(mimeType: string, metadata: IAudioMetadata): boolean {
     return container.includes("wave") || container.includes("riff");
   if (mimeType === "audio/flac") return container === "flac";
   if (mimeType === "audio/aiff") return container.startsWith("aiff");
-  if (mimeType === "audio/mp4" || mimeType === "audio/m4a")
-    return container.includes("mp4") || container.includes("quicktime");
+  if (mimeType === "audio/mp4" || mimeType === "audio/m4a") {
+    // music-metadata reports ftyp brands (e.g. iso5/isom/hlsf or M4A),
+    // not a generic "mp4" label. Match whole known ISO BMFF brands only;
+    // the parser and audio/video track and duration checks still apply below.
+    return container.split("/").some(brand => /^(?:isom|iso[2-9]|mp4[12]|m4a|qt|quicktime)$/.test(brand));
+  }
   if (mimeType === "audio/mpeg" || mimeType === "audio/mp3")
     return container.includes("mpeg");
   if (mimeType === "audio/aac")
