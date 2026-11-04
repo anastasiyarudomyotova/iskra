@@ -395,3 +395,18 @@ body, .app-shell { background: #fbfbfb; color: #171717; }
 .assessment-message button { margin-top: 10px; }
 @media (max-width: 380px) { .result-heading { flex-wrap: wrap; } }
 .assessment-before-submit { font-size: 12px; line-height: 1.5; color: #62646a; margin-top: 14px; }
+
+.rich-editor { border: 1px solid #e4e4e8; border-radius: 10px; overflow: hidden; }
+.format-toolbar { display: flex; flex-wrap: wrap; gap: 3px; padding: 8px; border-bottom: 1px solid #e9e9ed; background: #fafafa; }
+.format-toolbar button { display: grid; place-items: center; width: 34px; height: 34px; border: 0; border-radius: 6px; color: #4f5155; background: transparent; cursor: pointer; }
+.format-toolbar button:hover, .format-toolbar button[aria-pressed="true"] { background: #fff0e5; color: #a84500; }
+.format-toolbar button:disabled { opacity: .35; cursor: default; }
+.format-toolbar button:focus-visible { outline: 2px solid #c45300; outline-offset: 1px; }
+.rich-text-area { min-height: 330px; padding: 18px; color: #303034; font-size: 14px; line-height: 1.7; overflow-wrap: anywhere; outline: none; }
+.rich-text-area:focus-visible { box-shadow: inset 0 0 0 2px #c45300; }
+.rich-text-area p { margin: 0 0 .8em; }
+.rich-text-area h2 { font-size: 16px; font-weight: 700; margin: 1em 0 .5em; }
+.rich-text-area > :first-child { margin-top: 0; }
+.rich-text-area ul, .rich-text-area ol { margin: .5em 0 1em; padding-left: 1.6em; }
+.rich-text-area ul { list-style: disc; }.rich-text-area ol { list-style: decimal; }
+.rich-text-area li p { margin: 0; }

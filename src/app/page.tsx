@@ -3,7 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, Check, CheckCircle2, Clipboard, FileText, Mic, RotateCcw, Sparkles, Square, Plus, BriefcaseBusiness, Settings, PenLine, AudioLines, CircleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { DRAFT_TOPICS, sectionsFromGenerated, serializeDraft } from "@/lib/draft";
+import { DRAFT_TOPICS, documentFromBlocks, plainText } from "@/lib/draft";
+import { RichDraftEditor } from "@/components/rich-draft-editor";
+import type { Editor, JSONContent } from "@tiptap/react";
 
 const questions = [
   { title: "Какие задачи сотрудник выполняет каждый день?", hint: "Расскажите о двух-трёх основных задачах, из которых складывается рабочий день", example: "Например: общается с клиентами, готовит отчёты, координирует работу команды" },
@@ -33,7 +35,10 @@ export default function Home() {
   const [answerError, setAnswerError] = useState("");
   const [voiceError, setVoiceError] = useState(false);
   const [notice, setNotice] = useState("");
-  const [draft, setDraft] = useState<string[] | null>(null);
+  const [draft, setDraft] = useState<JSONContent | null>(null);
+  const [editorVersion, setEditorVersion] = useState(0);
+  const editorRef = useRef<Editor | null>(null);
+  const draftTextRef = useRef("");
   const [draftSource, setDraftSource] = useState<string[] | null>(null);
   const [editingFromResult, setEditingFromResult] = useState(false);
   const [assessment, setAssessment] = useState<AssessmentItem[] | null>(null);
@@ -88,11 +93,12 @@ export default function Home() {
     } catch { setStatus("idle"); setMessage("Не удалось получить доступ к микрофону. Проверьте разрешение браузера или введите ответ вручную"); }
   }
   function stopRecording(cancel = false) { cancelled.current = cancel; if (recorder.current?.state === "recording") recorder.current.stop(); if (cancel) { setStatus("idle"); setNotice("Запись отменена. Можно попробовать снова или ввести ответ вручную"); } }
-  async function checkCompleteness(source: string[]) {
+  async function checkCompleteness(source: string) {
     const version = ++assessmentVersion.current;
     setAssessment(null); setAssessmentState("loading");
+    if (source.length > 16000) { setAssessmentState("error"); return; }
     try {
-      const result = await api("/api/completeness", { answers: Object.fromEntries(keys.map((key, i) => [key, source[i]])) });
+      const result = await api("/api/completeness", { draft: source });
       if (version !== assessmentVersion.current) return;
       if (!Array.isArray(result.assessment) || result.assessment.length !== 4) throw new Error("Некорректный ответ");
       setAssessment(result.assessment); setAssessmentState("ready");
@@ -106,11 +112,13 @@ export default function Home() {
     try {
       const result = await api("/api/draft", { answers: Object.fromEntries(keys.map((key, i) => [key, nextAnswers[i]])) });
       if (version !== generationVersion.current) return;
-      if (!Array.isArray(result.sections) || result.sections.length !== 4 || keys.some(key => !result.sections.some((section: { topic: string; items: unknown }) => section.topic === key && Array.isArray(section.items)))) throw new Error("Некорректный ответ");
-      const generated = sectionsFromGenerated(result.sections);
-      setDraft(generated); setDraftSource([...nextAnswers]); setCopied(false);
+      if (!Array.isArray(result.blocks) || !result.blocks.length) throw new Error("Некорректный ответ");
+      const generated = documentFromBlocks(result.blocks);
+      const generatedText = plainText(generated);
+      draftTextRef.current = generatedText;
+      setDraft(generated); setEditorVersion(v => v + 1); setDraftSource([...nextAnswers]); setCopied(false);
       setMessage(""); setVoiceError(false); setScreen("result"); setEditingFromResult(false);
-      void checkCompleteness(generated);
+      void checkCompleteness(generatedText);
     } catch {
       if (version === generationVersion.current) setMessage("Не удалось подготовить черновик. Попробуйте ещё раз; ваши данные сохранены.");
     } finally {
@@ -124,13 +132,30 @@ export default function Home() {
     if (editingFromResult) { setScreen("result"); setEditingFromResult(false); }
     else if (step < 3) setStep(step + 1); else void generate();
   }
-  async function copy() { try { await navigator.clipboard.writeText(serializeDraft(draft || [])); setCopied(true); } catch { setMessage("Не удалось скопировать текст. Выделите его и скопируйте вручную"); } }
+  async function copy() {
+    try {
+      const editor = editorRef.current;
+      if (!editor) throw new Error("Редактор ещё загружается");
+      const text = plainText(editor.getJSON());
+      if (typeof ClipboardItem !== "undefined" && navigator.clipboard.write) {
+        try { await navigator.clipboard.write([new ClipboardItem({ "text/html": new Blob([editor.getHTML()], { type: "text/html" }), "text/plain": new Blob([text], { type: "text/plain" }) })]); }
+        catch { await navigator.clipboard.writeText(text); }
+      } else await navigator.clipboard.writeText(text);
+      setCopied(true);
+    } catch { setMessage("Не удалось скопировать текст. Выделите его и скопируйте вручную"); }
+  }
+  function changeDraft(content: JSONContent) {
+    const text = plainText(content);
+    setDraft(content); setCopied(false);
+    if (text !== draftTextRef.current) { draftTextRef.current = text; assessmentVersion.current++; setAssessment(null); setAssessmentState("stale"); }
+    if (status === "generating") { generationVersion.current++; setStatus("idle"); setMessage("Создание отменено: черновик был изменён."); }
+  }
   const openAnswer = (i: number) => {
     if (status !== "idle" || !confirmed[i]) return;
     setEditingFromResult(screen === "result"); setStep(i); setScreen("wizard"); setMessage(""); setAnswerError(""); setNotice("");
   };
   const reset = () => {
-    setScreen("intro"); setStep(0); setAnswers(["", "", "", ""]); setConfirmed([false, false, false, false]); setDraft(null); setDraftSource(null); setAssessment(null); setAssessmentState("idle"); assessmentVersion.current++; generationVersion.current++; setStatus("idle"); setEditingFromResult(false); setCopied(false); setMessage(""); setAnswerError(""); setNotice("");
+    setScreen("intro"); setStep(0); setAnswers(["", "", "", ""]); setConfirmed([false, false, false, false]); setDraft(null); draftTextRef.current = ""; setDraftSource(null); setAssessment(null); setAssessmentState("idle"); assessmentVersion.current++; generationVersion.current++; setStatus("idle"); setEditingFromResult(false); setCopied(false); setMessage(""); setAnswerError(""); setNotice("");
   };
   return (
     <div className="app-shell">
@@ -183,7 +208,7 @@ export default function Home() {
               </div> : draft && <div className="result-screen">
                 <div className="question-top"><h2>Ваш черновик <em>готов</em></h2><div className="question-badge"><span/> ФИНАЛЬНЫЙ ЭТАП</div></div><p className="question-hint">Отредактируйте текст и проверьте его перед использованием</p>
                 <div className="result-box"><div className="result-heading"><div><FileText size={19}/><b>Описание вакансии</b></div><Button variant="outline" className="copy-button" onClick={copy}>{copied ? <Check/> : <Clipboard/>}{copied ? "Скопировано" : "Скопировать как есть"}</Button></div>
-                  {DRAFT_TOPICS.map((topic, i) => <div className="draft-section" key={topic.key}><label htmlFor={`draft-${topic.key}`}>{topic.title}</label><div className="draft-editor"><span aria-hidden="true">•</span><textarea id={`draft-${topic.key}`} rows={3} maxLength={4000} value={draft[i]} onChange={e => { const value = e.target.value; setDraft(d => d?.map((item, index) => index === i ? value : item) ?? null); setCopied(false); assessmentVersion.current++; setAssessment(null); setAssessmentState("stale"); if (status === "generating") { generationVersion.current++; setStatus("idle"); setMessage("Создание отменено: черновик был изменён."); } }}/></div></div>)}
+                  <RichDraftEditor key={editorVersion} content={draft} editorRef={editorRef} onChange={changeDraft}/>
                 </div>
                 {message && <div className="feedback error" role="alert">{message}</div>}
                 {draftSource && answers.some((value, i) => value !== draftSource[i]) && <div className="draft-stale"><p>Ответы изменились. Черновик остался без изменений.</p><Button variant="outline" onClick={() => { if (window.confirm("Пересоздать черновик из ответов с помощью ИИ? Ваши правки черновика будут заменены только после успешной генерации.")) void generate(answers); }} disabled={status === "generating"}>{status === "generating" ? "Готовим черновик…" : "Обновить черновик из ответов"}</Button></div>}
@@ -192,10 +217,10 @@ export default function Home() {
             </section>
             {screen === "result" ? <aside className="review-panel assessment-panel" aria-label="Оценка полноты">
               <div className="assessment-heading"><h2>Оценка полноты</h2><p>ИИ проверяет текст черновика и предлагает уточнения. Решение остаётся за вами.</p></div>
-              <p className="assessment-privacy">Для проверки четыре раздела черновика отправляются в ИИ. Замечания не меняют текст.</p>
+              <p className="assessment-privacy">Для проверки текст черновика отправляется в ИИ. Замечания не меняют текст.</p>
               {assessmentState === "loading" && <p role="status" className="assessment-message">Проверяем черновик…</p>}
-              {assessmentState === "stale" && <div className="assessment-message" role="status"><p>Черновик изменён. Проверка устарела.</p><Button variant="outline" onClick={() => void checkCompleteness(draft || [])}>Проверить заново</Button></div>}
-              {assessmentState === "error" && <div role="alert" className="assessment-message"><p>Не удалось проверить черновик. Его можно скопировать как есть.</p><Button variant="outline" onClick={() => void checkCompleteness(draft || [])}>Повторить проверку</Button></div>}
+              {assessmentState === "stale" && <div className="assessment-message" role="status"><p>Черновик изменён. Проверка устарела.</p><Button variant="outline" onClick={() => void checkCompleteness(draftTextRef.current)}>Проверить заново</Button></div>}
+              {assessmentState === "error" && <div role="alert" className="assessment-message"><p>{draft && plainText(draft).length > 16000 ? "Для проверки сократите текст до 16 000 символов. Черновик можно скопировать как есть." : "Не удалось проверить черновик. Его можно скопировать как есть."}</p><Button variant="outline" onClick={() => void checkCompleteness(draftTextRef.current)}>Повторить проверку</Button></div>}
               {assessmentState === "ready" && assessment && <div className="assessment-list">{DRAFT_TOPICS.map((topic, i) => { const item = assessment.find(value => value.topic === topic.key); if (!item) return null; return <section className="assessment-item" key={topic.key}><div className="assessment-item-title"><h3>{topic.title}</h3><span className={`assessment-status ${item.status}`}>{item.status === "sufficient" ? "Достаточно" : item.status === "clarify" ? "Уточнить" : "Нет данных"}</span></div>{item.evidence && <p className="assessment-evidence">В черновике: «{item.evidence}»</p>}{item.question && <p className="assessment-question">{item.question}</p>}<button className="edit-answer" onClick={() => openAnswer(i)}><PenLine size={12}/> Уточнить ответ</button></section>; })}</div>}
             </aside> :             <aside className="review-panel" aria-label="Прогресс и ответы">
               <div className="review-header"><div><h2>Ваш прогресс</h2><p>Всё важное — здесь</p></div><div className="progress-ring" role="progressbar" aria-label="Подтверждено ответов" aria-valuemin={0} aria-valuemax={4} aria-valuenow={count}><svg viewBox="0 0 100 100" aria-hidden="true"><circle className="progress-track" cx="50" cy="50" r="43"/><circle className="progress-value" cx="50" cy="50" r="43" strokeDasharray={`${count / 4 * 270.18} 270.18`}/></svg><div><b>{count}<small>/4</small></b></div></div></div>
