@@ -17,8 +17,11 @@ type Content =
 
 function configuration(modelOverride?: string) {
   const apiKey = process.env.GEMINI_API_KEY?.trim();
-  const model = modelOverride || process.env.GEMINI_MODEL?.trim() || DEFAULT_GEMINI_MODEL;
+  const configuredModel = process.env.GEMINI_MODEL?.trim();
+  const model = modelOverride || configuredModel || DEFAULT_GEMINI_MODEL;
   if (
+    (configuredModel && configuredModel !== DEFAULT_GEMINI_MODEL) ||
+    model !== DEFAULT_GEMINI_MODEL ||
     !apiKey ||
     apiKey.length > 512 ||
     /\s/.test(apiKey) ||
