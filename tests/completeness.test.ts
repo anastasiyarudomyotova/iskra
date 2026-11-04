@@ -4,7 +4,7 @@ import { jsonRequest, mockGemini, sentBody, SYNTHETIC_ANSWERS, TEST_KEY } from "
 import { topics } from "@/lib/server/completeness";
 
 const request = (answers: unknown = SYNTHETIC_ANSWERS) => jsonRequest("/api/completeness", { answers });
-const full = () => ({ assessment: topics.map(topic => ({ topic, status: "sufficient", evidence: SYNTHETIC_ANSWERS[topic], question: null })) });
+const full = () => ({ assessment: topics.map(topic => ({ topic, status: "sufficient", evidence: SYNTHETIC_ANSWERS[topic], question: "Что ещё стоит уточнить?" })) });
 
 describe("POST /api/completeness", () => {
   it("accepts synthetic detailed answers and sends fixed stateless model configuration", async () => {
@@ -23,17 +23,17 @@ describe("POST /api/completeness", () => {
       { topic: "daily_tasks", status: "clarify", evidence: "Разные задачи", question: "Какие задачи выполняются каждый день?" },
       { topic: "current_project", status: "missing", evidence: null, question: "Над каким проектом предстоит работать?" },
       { topic: "next_six_months", status: "missing", evidence: null, question: "Какие планы на ближайшие полгода?" },
-      { topic: "tools_and_knowledge", status: "sufficient", evidence: "Таблицы", question: null },
+      { topic: "tools_and_knowledge", status: "sufficient", evidence: "Таблицы", question: "Какие знания ещё важны?" },
     ] };
     mockGemini(result); const response = await POST(request(answers)); expect(response.status).toBe(200); expect(await response.json()).toEqual(result);
   });
-  it.each(["invented evidence", "duplicate", "extra field", "question on sufficient", "missing without question", "missing with evidence", "invented question"])("rejects %s", async mode => {
+  it.each(["invented evidence", "duplicate", "extra field", "missing question", "missing without question", "missing with evidence", "invented question"])("rejects %s", async mode => {
     vi.stubEnv("GEMINI_API_KEY", TEST_KEY);
     const result = full();
     if (mode === "invented evidence") result.assessment[0].evidence = "Несуществующая зарплата";
     if (mode === "duplicate") result.assessment[1].topic = result.assessment[0].topic;
     if (mode === "extra field") Object.assign(result.assessment[0], { invented_fact: "Москва" });
-    if (mode === "question on sufficient") Object.assign(result.assessment[0], { question: "Как?" });
+    if (mode === "missing question") Object.assign(result.assessment[0], { question: null });
     if (mode === "missing without question") Object.assign(result.assessment[0], { status: "missing", evidence: null, question: null });
     if (mode === "missing with evidence") Object.assign(result.assessment[0], { status: "missing", question: "Что уточнить?" });
     if (mode === "invented question") Object.assign(result.assessment[0], { status: "clarify", question: "Какие задачи выполняются в Москве?" });

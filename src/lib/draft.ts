@@ -5,9 +5,9 @@ export const DRAFT_TOPICS = [
   { key: "tools_and_knowledge", title: "Инструменты и знания" },
 ] as const;
 
-/** Preserve the supplied text verbatim; do not infer facts from it. */
-export function sectionsFromAnswers(answers: readonly string[]): string[] {
-  return DRAFT_TOPICS.map((_, i) => answers[i] ?? "");
+export type DraftSection = { topic: typeof DRAFT_TOPICS[number]["key"]; items: { text: string }[] };
+export function sectionsFromGenerated(sections: DraftSection[]): string[] {
+  return DRAFT_TOPICS.map(topic => sections.find(section => section.topic === topic.key)?.items.map(item => item.text).join("\n") ?? "");
 }
 
 /** Plain text headings and bullets; no HTML or Markdown is copied. */

@@ -10,7 +10,7 @@ export async function POST(request: Request): Promise<Response> {
     if (!body.success) throw ERRORS.input();
     const result = await generateStructured({
       model: "gemini-3.5-flash-lite", systemInstruction: COMPLETENESS_INSTRUCTION,
-      content: [{ type: "text", text: `Оцени только эти ответы:\n${JSON.stringify(body.data.answers)}` }],
+      content: [{ type: "text", text: `Оцени только эти разделы черновика:\n${JSON.stringify(body.data.answers)}` }],
       schema: completenessResponseSchema, maxOutputTokens: 4096,
     });
     if (!validAssessment(result, body.data.answers)) throw ERRORS.malformed();

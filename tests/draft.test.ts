@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { sectionsFromAnswers, serializeDraft } from "@/lib/draft";
+import { sectionsFromGenerated, serializeDraft } from "@/lib/draft";
 import { SYNTHETIC_ANSWERS } from "./fixtures";
 
 describe("draft formatting", () => {
   it("uses only answers and copies readable plain headings and bullets", () => {
-    const answers = Object.values(SYNTHETIC_ANSWERS); const sections = sectionsFromAnswers(answers);
+    const answers = Object.values(SYNTHETIC_ANSWERS); const topics = ["daily_tasks", "current_project", "next_six_months", "tools_and_knowledge"] as const; const sections = sectionsFromGenerated(topics.map((topic, i) => ({ topic, items: [{ text: answers[i] }] })));
     expect(sections).toEqual(answers);
     const text = serializeDraft(sections);
     for (const answer of answers) expect(text).toContain(answer);
