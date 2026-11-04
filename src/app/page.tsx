@@ -196,7 +196,7 @@ export default function Home() {
                 <Button className="action-primary" onClick={() => setScreen("wizard")}>Начать создание <ArrowRight/></Button>
                 <p className="intro-privacy" hidden></p>
               </div>}
-              {screen !== "result" ? <div className="question-screen" inert={screen === "intro"} aria-hidden={screen === "intro"}>
+              {screen !== "result" ? <div className="question-screen" inert={screen === "intro"} aria-hidden={screen === "intro"} style={screen === "intro" ? { opacity: 0 } : undefined}>
                 <div className="question-top"><h2 key={step}>{questions[step].title}</h2><div className="question-badge"><span/> ВОПРОС {String(step + 1).padStart(2, "0")} <span className="badge-muted">/ 04</span></div></div>
                 <p className="question-hint">{questions[step].hint}</p>
                   <div className="input-heading" hidden><div className="input-icon"><AudioLines size={20}/></div><div><h3></h3><p></p></div><span className="input-label">ГОЛОС ИЛИ ТЕКСТ</span></div>

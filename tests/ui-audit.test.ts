@@ -39,6 +39,25 @@ function mockRecorder() {
   return audio;
 }
 
+describe("intro navigation", () => {
+  it("keeps the question layout invisible when returning to the intro", () => {
+    const { container } = render(React.createElement(Home));
+    const question = container.querySelector<HTMLElement>(".question-screen")!;
+    expect(question.getAttribute("aria-hidden")).toBe("true");
+    expect(question.hasAttribute("inert")).toBe(true);
+    expect(question.style.opacity).toBe("0");
+    fireEvent.click(screen.getByRole("button", { name: "Начать создание" }));
+    expect(question.getAttribute("aria-hidden")).toBe("false");
+    expect(question.hasAttribute("inert")).toBe(false);
+    expect(question.style.opacity).toBe("");
+    fireEvent.click(screen.getByRole("button", { name: /Назад/ }));
+    expect(screen.getByRole("button", { name: "Начать создание" })).toBeTruthy();
+    expect(question.getAttribute("aria-hidden")).toBe("true");
+    expect(question.hasAttribute("inert")).toBe(true);
+    expect(question.style.opacity).toBe("0");
+  });
+});
+
 describe("voice negative paths", () => {
   it("keeps the answer on unsupported microphone and permission denial", async () => {
     const field = start();
