@@ -26,6 +26,15 @@ describe("POST /api/draft", () => {
     const blocks = sentBody(mock).response_format.schema.properties.blocks;
     expect(blocks.maxItems).toBeUndefined(); expect(blocks.items.properties.items.maxItems).toBeUndefined();
   });
+  it("rejects more than 30 items in a locally validated block", async () => {
+    vi.stubEnv("GEMINI_API_KEY", TEST_KEY);
+    const result = sample();
+    result.blocks[1].items = Array.from({ length: 31 }, () => sample().blocks[1].items[0]);
+    mockGemini(result);
+    const response = await POST(request());
+    expect(response.status).toBe(502);
+    expect((await response.json()).code).toBe("INVALID_MODEL_OUTPUT");
+  });
   it("logs only the provider status and never the provider body", async () => {
     vi.stubEnv("GEMINI_API_KEY", TEST_KEY); const logger = vi.spyOn(console, "error").mockImplementation(() => {});
     vi.stubGlobal("fetch", vi.fn(async () => new Response("private provider body", { status: 400 })));
