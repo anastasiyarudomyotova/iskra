@@ -30,7 +30,7 @@ export default function Home() {
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState(["", "", "", ""]);
   const [confirmed, setConfirmed] = useState([false, false, false, false]);
-  const [status, setStatus] = useState<"idle" | "recording" | "transcribing" | "generating">("idle");
+  const [status, setStatus] = useState<"idle" | "requesting" | "recording" | "transcribing" | "generating">("idle");
   const [message, setMessage] = useState("");
   const [answerError, setAnswerError] = useState("");
   const [voiceError, setVoiceError] = useState(false);
@@ -44,7 +44,10 @@ export default function Home() {
   const [assessment, setAssessment] = useState<AssessmentItem[] | null>(null);
   const [assessmentState, setAssessmentState] = useState<"idle" | "loading" | "error" | "ready" | "stale">("idle");
   const assessmentVersion = useRef(0);
+  const assessmentInFlight = useRef(false);
   const generationVersion = useRef(0);
+  const generationInFlight = useRef(false);
+  const microphonePending = useRef(false);
   const [copied, setCopied] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const recorder = useRef<MediaRecorder | null>(null);
@@ -80,23 +83,32 @@ export default function Home() {
     finally { setStatus("idle"); }
   }
   async function startRecording() {
+    if (microphonePending.current || status !== "idle") return;
     setMessage(""); setAnswerError(""); setNotice(""); setVoiceError(true);
     if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") { setMessage("Запись не поддерживается в этом браузере. Введите ответ вручную"); return; }
+    microphonePending.current = true; cancelled.current = false; setStatus("requesting");
+    let stream: MediaStream | undefined;
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const r = new MediaRecorder(stream); recorder.current = r; chunks.current = []; cancelled.current = false;
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (cancelled.current) { stream.getTracks().forEach(t => t.stop()); return; }
+      const r = new MediaRecorder(stream); recorder.current = r; chunks.current = [];
       r.ondataavailable = e => { if (e.data.size) chunks.current.push(e.data); };
-      r.onstop = () => { stream.getTracks().forEach(t => t.stop()); if (timer.current) clearTimeout(timer.current); if (!cancelled.current) void transcribe(new Blob(chunks.current, { type: r.mimeType })); };
-      r.onerror = () => { cancelled.current = true; stream.getTracks().forEach(t => t.stop()); setStatus("idle"); setMessage("Запись прервалась. Попробуйте снова или введите ответ вручную"); };
+      r.onstop = () => { r.stream.getTracks().forEach(t => t.stop()); if (timer.current) clearTimeout(timer.current); if (!cancelled.current) void transcribe(new Blob(chunks.current, { type: r.mimeType })); };
+      r.onerror = () => { cancelled.current = true; r.stream.getTracks().forEach(t => t.stop()); if (timer.current) clearTimeout(timer.current); setStatus("idle"); setMessage("Запись прервалась. Попробуйте снова или введите ответ вручную"); };
       r.start(); setElapsed(0); setStatus("recording");
       timer.current = setTimeout(() => { cancelled.current = true; if (r.state === "recording") r.stop(); setStatus("idle"); setMessage("Запись слишком длинная: максимум 60 секунд. Попробуйте ещё раз или введите текст"); }, 60000);
-    } catch { setStatus("idle"); setMessage("Не удалось получить доступ к микрофону. Проверьте разрешение браузера или введите ответ вручную"); }
+    } catch {
+      stream?.getTracks().forEach(t => t.stop());
+      if (!cancelled.current) { setStatus("idle"); setMessage("Не удалось начать запись. Проверьте доступ к микрофону или введите ответ вручную"); }
+    } finally { microphonePending.current = false; }
   }
   function stopRecording(cancel = false) { cancelled.current = cancel; if (recorder.current?.state === "recording") recorder.current.stop(); if (cancel) { setStatus("idle"); setNotice("Запись отменена. Можно попробовать снова или ввести ответ вручную"); } }
   async function checkCompleteness(source: string) {
+    if (assessmentInFlight.current) return;
+    assessmentInFlight.current = true;
     const version = ++assessmentVersion.current;
     setAssessment(null); setAssessmentState("loading");
-    if (source.length > 16000) { setAssessmentState("error"); return; }
+    if (source.length > 16000) { assessmentInFlight.current = false; setAssessmentState("error"); return; }
     try {
       const result = await api("/api/completeness", { draft: source });
       if (version !== assessmentVersion.current) return;
@@ -104,9 +116,13 @@ export default function Home() {
       setAssessment(result.assessment); setAssessmentState("ready");
     } catch {
       if (version === assessmentVersion.current) setAssessmentState("error");
+    } finally {
+      if (version === assessmentVersion.current) assessmentInFlight.current = false;
     }
   }
   async function generate(nextAnswers = answers) {
+    if (generationInFlight.current) return;
+    generationInFlight.current = true;
     const version = ++generationVersion.current;
     setStatus("generating"); setMessage("");
     try {
@@ -118,11 +134,12 @@ export default function Home() {
       draftTextRef.current = generatedText;
       setDraft(generated); setEditorVersion(v => v + 1); setDraftSource([...nextAnswers]); setCopied(false);
       setMessage(""); setVoiceError(false); setScreen("result"); setEditingFromResult(false);
+      assessmentVersion.current++; assessmentInFlight.current = false;
       void checkCompleteness(generatedText);
     } catch {
       if (version === generationVersion.current) setMessage("Не удалось подготовить черновик. Попробуйте ещё раз; ваши данные сохранены.");
     } finally {
-      if (version === generationVersion.current) setStatus("idle");
+      if (version === generationVersion.current) { generationInFlight.current = false; setStatus("idle"); }
     }
   }
   function next() {
@@ -147,15 +164,15 @@ export default function Home() {
   function changeDraft(content: JSONContent) {
     const text = plainText(content);
     setDraft(content); setCopied(false);
-    if (text !== draftTextRef.current) { draftTextRef.current = text; assessmentVersion.current++; setAssessment(null); setAssessmentState("stale"); }
-    if (status === "generating") { generationVersion.current++; setStatus("idle"); setMessage("Создание отменено: черновик был изменён."); }
+    if (text !== draftTextRef.current) { draftTextRef.current = text; assessmentVersion.current++; assessmentInFlight.current = false; setAssessment(null); setAssessmentState("stale"); }
+    if (generationInFlight.current) { generationVersion.current++; generationInFlight.current = false; setStatus("idle"); setMessage("Создание отменено: черновик был изменён."); }
   }
   const openAnswer = (i: number) => {
     if (status !== "idle" || !confirmed[i]) return;
     setEditingFromResult(screen === "result"); setStep(i); setScreen("wizard"); setMessage(""); setAnswerError(""); setNotice("");
   };
   const reset = () => {
-    setScreen("intro"); setStep(0); setAnswers(["", "", "", ""]); setConfirmed([false, false, false, false]); setDraft(null); draftTextRef.current = ""; setDraftSource(null); setAssessment(null); setAssessmentState("idle"); assessmentVersion.current++; generationVersion.current++; setStatus("idle"); setEditingFromResult(false); setCopied(false); setMessage(""); setAnswerError(""); setNotice("");
+    setScreen("intro"); setStep(0); setAnswers(["", "", "", ""]); setConfirmed([false, false, false, false]); setDraft(null); draftTextRef.current = ""; setDraftSource(null); setAssessment(null); setAssessmentState("idle"); assessmentVersion.current++; assessmentInFlight.current = false; generationVersion.current++; generationInFlight.current = false; setStatus("idle"); setEditingFromResult(false); setCopied(false); setMessage(""); setAnswerError(""); setNotice("");
   };
   return (
     <div className="app-shell">
@@ -189,8 +206,8 @@ export default function Home() {
                         <svg className="signal-arcs" viewBox="0 0 180 120" fill="none"><path d="M27 89C7 60 23 22 57 14"/><path d="M153 89c20-29 4-67-30-75"/><path d="M40 82C28 61 37 37 57 29"/><path d="M140 82c12-21 3-45-17-53"/><circle cx="90" cy="60" r="36"/></svg>
                         {status === "recording" ? <div className="waveform"><span/><span/><span/><span/><span/><span/><span/><span/><span/><span/><span/></div> : status === "transcribing" ? <div className="processing-symbol"/> : <div className="signal-center">{notice.includes("Текст готов") || notice.startsWith("Проверьте слова") ? <Check size={23}/> : <Mic size={22}/>}</div>}
                       </div>
-                      <div className="voice-copy"><div className="voice-status" role="status" aria-live="polite"><span className="voice-indicator"/><b>{status === "recording" ? "Идёт запись" : status === "transcribing" ? "Расшифровываем запись" : notice.includes("Текст готов") || notice.startsWith("Проверьте слова") ? "Расшифровка готова" : voiceError && message ? "Не удалось обработать запись" : "Готовы записать ответ"}</b></div><p>{status === "recording" ? "Говорите свободно — мы вас слушаем" : status === "transcribing" ? "Превращаем ваши слова в текст. Это может занять немного времени" : notice.includes("Текст готов") || notice.startsWith("Проверьте слова") ? "Проверьте текст ниже и при необходимости измените его" : "Нажмите на кнопку и расскажите о роли своими словами"}</p>
-                        <div className="voice-actions"><Button variant="outline" className="voice-button" disabled={status === "transcribing" || status === "generating"} onClick={() => status === "recording" ? stopRecording() : void startRecording()}>{status === "recording" ? <><Square size={16}/> <span>Завершить запись · <span className="record-timer">{`00:${String(elapsed).padStart(2, "0")}`}</span></span></> : <><Mic size={16}/> {voiceError && message ? "Попробовать снова" : "Записать ответ"}</>}</Button>{status === "recording" && <Button variant="ghost" className="cancel-button" onClick={() => stopRecording(true)}>Отменить</Button>}</div>
+                      <div className="voice-copy"><div className="voice-status" role="status" aria-live="polite"><span className="voice-indicator"/><b>{status === "requesting" ? "Ожидаем доступ к микрофону" : status === "recording" ? "Идёт запись" : status === "transcribing" ? "Расшифровываем запись" : notice.includes("Текст готов") || notice.startsWith("Проверьте слова") ? "Расшифровка готова" : voiceError && message ? "Не удалось обработать запись" : "Готовы записать ответ"}</b></div><p>{status === "requesting" ? "Разрешите доступ к микрофону в браузере" : status === "recording" ? "Говорите свободно — мы вас слушаем" : status === "transcribing" ? "Превращаем ваши слова в текст. Это может занять немного времени" : notice.includes("Текст готов") || notice.startsWith("Проверьте слова") ? "Проверьте текст ниже и при необходимости измените его" : "Нажмите на кнопку и расскажите о роли своими словами"}</p>
+                        <div className="voice-actions"><Button variant="outline" className="voice-button" disabled={status === "requesting" || status === "transcribing" || status === "generating"} onClick={() => status === "recording" ? stopRecording() : void startRecording()}>{status === "recording" ? <><Square size={16}/> <span>Завершить запись · <span className="record-timer">{`00:${String(elapsed).padStart(2, "0")}`}</span></span></> : <><Mic size={16}/> {voiceError && message ? "Попробовать снова" : "Записать ответ"}</>}</Button>{status === "recording" && <Button variant="ghost" className="cancel-button" onClick={() => stopRecording(true)}>Отменить</Button>}</div>
                       </div>
                     </div>
                   </div>
