@@ -1,7 +1,3 @@
-// Route contract tests isolate the provider; limiter integration is tested separately.
-vi.mock("@/lib/server/ai-limiter", () => ({
-  withAiAdmission: async (_request: Request, _route: string, _body: unknown, run: (terminal: () => void) => Promise<unknown>) => run(() => {}),
-}));
 import { describe, expect, it, vi } from "vitest";
 import { POST as draft } from "@/app/api/draft/route";
 import { POST as completeness } from "@/app/api/completeness/route";
