@@ -43,21 +43,17 @@ function mockRecorder() {
 }
 
 describe("intro navigation", () => {
-  it("keeps the question layout invisible when returning to the intro", () => {
+  it("unmounts the question on the intro while retaining the answer", () => {
     const { container } = render(React.createElement(Home));
-    const question = container.querySelector<HTMLElement>(".question-screen")!;
-    expect(question.getAttribute("aria-hidden")).toBe("true");
-    expect(question.hasAttribute("inert")).toBe(true);
-    expect(question.style.opacity).toBe("0");
+    expect(container.querySelector(".question-screen")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Начать создание" }));
-    expect(question.getAttribute("aria-hidden")).toBe("false");
-    expect(question.hasAttribute("inert")).toBe(false);
-    expect(question.style.opacity).toBe("");
+    const field = screen.getByRole("textbox", { name: /Текст ответа/ }) as HTMLTextAreaElement;
+    fireEvent.change(field, { target: { value: answer } });
     fireEvent.click(screen.getByRole("button", { name: /Назад/ }));
     expect(screen.getByRole("button", { name: "Начать создание" })).toBeTruthy();
-    expect(question.getAttribute("aria-hidden")).toBe("true");
-    expect(question.hasAttribute("inert")).toBe(true);
-    expect(question.style.opacity).toBe("0");
+    expect(container.querySelector(".question-screen")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Начать создание" }));
+    expect((screen.getByRole("textbox", { name: /Текст ответа/ }) as HTMLTextAreaElement).value).toBe(answer);
   });
 });
 

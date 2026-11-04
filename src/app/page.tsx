@@ -190,7 +190,7 @@ export default function Home() {
                 <Button className="action-primary" onClick={() => setScreen("wizard")}>Начать создание <ArrowRight/></Button>
                 <p className="intro-privacy" hidden></p>
               </div>}
-              {screen !== "result" ? <div className="question-screen" inert={screen === "intro"} aria-hidden={screen === "intro"} style={screen === "intro" ? { opacity: 0 } : undefined}>
+              {screen === "wizard" ? <div className="question-screen">
                 <div className="question-top"><h2 key={step}>{questions[step].title}</h2><div className="question-badge"><span/> ВОПРОС {String(step + 1).padStart(2, "0")} <span className="badge-muted">/ 04</span></div></div>
                 <p className="question-hint">{questions[step].hint}</p>
                   <div className="input-heading" hidden><div className="input-icon"><AudioLines size={20}/></div><div><h3></h3><p></p></div><span className="input-label">ГОЛОС ИЛИ ТЕКСТ</span></div>
@@ -215,7 +215,7 @@ export default function Home() {
                 {status === "generating" && <span className="sr-only" role="status">Готовим черновик</span>}
                 <div className="question-actions"><Button variant="ghost" className="action-back" disabled={status !== "idle"} onClick={() => { setMessage(""); setAnswerError(""); setNotice(""); if (step === 0) setScreen("intro"); else setStep(step - 1); }}><ArrowLeft/> Назад</Button><Button className={`action-primary ${!answers[step].trim() ? "action-empty" : ""}`} disabled={status !== "idle"} onClick={next}>{status === "generating" ? <><LoaderCircle className="draft-spinner" aria-hidden="true"/> Готовим черновик…</> : editingFromResult ? "Вернуться к черновику" : step === 3 ? "Создать черновик" : "Подтвердить и далее"}<ArrowRight/></Button></div>
                 <div className="gentle-note" hidden><Sparkles size={17}/><p><b></b></p></div>
-              </div> : draft && <div className="result-screen">
+              </div> : screen === "result" && draft && <div className="result-screen">
                 <div className="question-top"><h2>Ваш черновик <em>готов</em></h2><div className="question-badge"><span/> ФИНАЛЬНЫЙ ЭТАП</div></div><p className="question-hint">Отредактируйте текст и проверьте его перед использованием</p>
                 <div className="result-box"><div className="result-heading"><div><FileText size={19}/><b>Описание вакансии</b></div><Button variant="outline" className="copy-button" onClick={copy}>{copied ? <Check/> : <Clipboard/>}{copied ? "Скопировано" : "Скопировать как есть"}</Button></div>
                   <RichDraftEditor key={editorVersion} content={draft} editorRef={editorRef} onChange={changeDraft}/>
