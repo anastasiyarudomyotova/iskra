@@ -73,6 +73,8 @@ export async function generateStructured<T>(options: {
   systemInstruction: string;
   content: Content[];
   schema: z.ZodType<T>;
+  modelSchema?: z.ZodType;
+  logUpstreamStatus?: boolean;
   maxOutputTokens: number;
   model?: string;
 }): Promise<T> {
@@ -96,7 +98,7 @@ export async function generateStructured<T>(options: {
         response_format: {
           type: "text",
           mime_type: "application/json",
-          schema: modelJsonSchema(options.schema),
+          schema: modelJsonSchema(options.modelSchema ?? options.schema),
         },
         generation_config: {
           max_output_tokens: options.maxOutputTokens,
@@ -121,6 +123,7 @@ export async function generateStructured<T>(options: {
 
   try {
     if (!response.ok) {
+      if (options.logUpstreamStatus) console.error("Gemini upstream status:", response.status);
       // Do not read or log provider error bodies: they can echo submitted data.
       await response.body?.cancel().catch(() => undefined);
       if (response.status === 429)

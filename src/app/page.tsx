@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, ArrowRight, Check, CheckCircle2, Clipboard, FileText, Mic, RotateCcw, Sparkles, Square, Plus, BriefcaseBusiness, Settings, PenLine, AudioLines, CircleAlert } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, CheckCircle2, Clipboard, FileText, Mic, RotateCcw, Sparkles, Square, Plus, BriefcaseBusiness, Settings, PenLine, AudioLines, CircleAlert, LoaderCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DRAFT_TOPICS, documentFromBlocks, plainText } from "@/lib/draft";
 import { RichDraftEditor } from "@/components/rich-draft-editor";
@@ -202,8 +202,8 @@ export default function Home() {
                 {answerError && <div id="answer-error" className="feedback error" role="alert"><CircleAlert size={17}/>{answerError}</div>}
                 {message && <div className="feedback error" role="alert"><CircleAlert size={17}/><span>{message}</span></div>}
                 {notice && <div className="feedback success" role="status"><CheckCircle2 size={17}/>{notice}</div>}
-                {step === 3 && !editingFromResult && <p className="assessment-before-submit">Для создания черновика ответы будут отправлены в ИИ; готовый текст будет проверен отдельно.</p>}
-                <div className="question-actions"><Button variant="ghost" className="action-back" disabled={status !== "idle"} onClick={() => { setMessage(""); setAnswerError(""); setNotice(""); if (step === 0) setScreen("intro"); else setStep(step - 1); }}><ArrowLeft/> Назад</Button><Button className={`action-primary ${!answers[step].trim() ? "action-empty" : ""}`} disabled={status !== "idle"} onClick={next}>{status === "generating" ? "Готовим черновик…" : editingFromResult ? "Вернуться к черновику" : step === 3 ? "Создать черновик" : "Подтвердить и далее"}<ArrowRight/></Button></div>
+                {status === "generating" && <span className="sr-only" role="status">Готовим черновик</span>}
+                <div className="question-actions"><Button variant="ghost" className="action-back" disabled={status !== "idle"} onClick={() => { setMessage(""); setAnswerError(""); setNotice(""); if (step === 0) setScreen("intro"); else setStep(step - 1); }}><ArrowLeft/> Назад</Button><Button className={`action-primary ${!answers[step].trim() ? "action-empty" : ""}`} disabled={status !== "idle"} onClick={next}>{status === "generating" ? <><LoaderCircle className="draft-spinner" aria-hidden="true"/> Готовим черновик…</> : editingFromResult ? "Вернуться к черновику" : step === 3 ? "Создать черновик" : "Подтвердить и далее"}<ArrowRight/></Button></div>
                 <div className="gentle-note" hidden><Sparkles size={17}/><p><b></b></p></div>
               </div> : draft && <div className="result-screen">
                 <div className="question-top"><h2>Ваш черновик <em>готов</em></h2><div className="question-badge"><span/> ФИНАЛЬНЫЙ ЭТАП</div></div><p className="question-hint">Отредактируйте текст и проверьте его перед использованием</p>
@@ -211,7 +211,8 @@ export default function Home() {
                   <RichDraftEditor key={editorVersion} content={draft} editorRef={editorRef} onChange={changeDraft}/>
                 </div>
                 {message && <div className="feedback error" role="alert">{message}</div>}
-                {draftSource && answers.some((value, i) => value !== draftSource[i]) && <div className="draft-stale"><p>Ответы изменились. Черновик остался без изменений.</p><Button variant="outline" onClick={() => { if (window.confirm("Пересоздать черновик из ответов с помощью ИИ? Ваши правки черновика будут заменены только после успешной генерации.")) void generate(answers); }} disabled={status === "generating"}>{status === "generating" ? "Готовим черновик…" : "Обновить черновик из ответов"}</Button></div>}
+                {status === "generating" && <span className="sr-only" role="status">Готовим черновик</span>}
+                {draftSource && answers.some((value, i) => value !== draftSource[i]) && <div className="draft-stale"><p>Ответы изменились. Черновик остался без изменений.</p><Button variant="outline" onClick={() => { if (window.confirm("Пересоздать черновик из ответов с помощью ИИ? Ваши правки черновика будут заменены только после успешной генерации.")) void generate(answers); }} disabled={status === "generating"}>{status === "generating" ? <><LoaderCircle className="draft-spinner" aria-hidden="true"/> Готовим черновик…</> : "Обновить черновик из ответов"}</Button></div>}
                 <div className="result-actions"><Button variant="ghost" className="action-back" onClick={() => openAnswer(3)}><ArrowLeft/> К ответам</Button><Button variant="outline" onClick={reset}><RotateCcw/> Начать заново</Button></div>
               </div>}
             </section>

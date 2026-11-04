@@ -394,7 +394,7 @@ body, .app-shell { background: #fbfbfb; color: #171717; }
 .assessment-message { margin-top: 16px; font-size: 13px; line-height: 1.5; color: #55585e; }
 .assessment-message button { margin-top: 10px; }
 @media (max-width: 380px) { .result-heading { flex-wrap: wrap; } }
-.assessment-before-submit { font-size: 12px; line-height: 1.5; color: #62646a; margin-top: 14px; }
+
 
 .rich-editor { border: 1px solid #e4e4e8; border-radius: 10px; overflow: hidden; }
 .format-toolbar { display: flex; flex-wrap: wrap; gap: 3px; padding: 8px; border-bottom: 1px solid #e9e9ed; background: #fafafa; }
@@ -410,3 +410,6 @@ body, .app-shell { background: #fbfbfb; color: #171717; }
 .rich-text-area ul, .rich-text-area ol { margin: .5em 0 1em; padding-left: 1.6em; }
 .rich-text-area ul { list-style: disc; }.rich-text-area ol { list-style: decimal; }
 .rich-text-area li p { margin: 0; }
+
+.draft-spinner { animation: draft-spin 1s linear infinite; }
+@keyframes draft-spin { to { transform: rotate(360deg); } }
