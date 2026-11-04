@@ -13,8 +13,7 @@ const block = z.strictObject({
   type: z.enum(["paragraph", "bullet_list"]),
   items: z.array(item),
 });
-// Avoid a potentially expensive nested 30 × 30 array constraint at the provider.
-// The full bounds remain enforced locally before any response is returned.
+// Provider schema avoids the nested 30 × 30 constraint; local validation retains the bounds.
 export const draftModelSchema = z.strictObject({ blocks: z.array(block) });
 export const draftResponseSchema = z.strictObject({
   blocks: z.array(block.extend({ items: z.array(item).min(1).max(30) })).min(1).max(30),
