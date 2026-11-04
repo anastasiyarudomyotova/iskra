@@ -17,8 +17,11 @@ type Content =
 
 function configuration(modelOverride?: string) {
   const apiKey = process.env.GEMINI_API_KEY?.trim();
-  const model = modelOverride || process.env.GEMINI_MODEL?.trim() || DEFAULT_GEMINI_MODEL;
+  const configuredModel = process.env.GEMINI_MODEL?.trim();
+  const model = modelOverride || configuredModel || DEFAULT_GEMINI_MODEL;
   if (
+    (configuredModel && configuredModel !== DEFAULT_GEMINI_MODEL) ||
+    model !== DEFAULT_GEMINI_MODEL ||
     !apiKey ||
     apiKey.length > 512 ||
     /\s/.test(apiKey) ||
@@ -29,6 +32,9 @@ function configuration(modelOverride?: string) {
   }
   return { apiKey, model };
 }
+
+/** Check availability before spending limiter quota. */
+export function assertGeminiConfigured() { configuration(); }
 
 function retryAfter(response: Response): number {
   const value = response.headers.get("retry-after");
@@ -77,6 +83,7 @@ export async function generateStructured<T>(options: {
   logUpstreamStatus?: boolean;
   maxOutputTokens: number;
   model?: string;
+  onTerminal?: () => void;
 }): Promise<T> {
   const { apiKey, model } = configuration(options.model);
   const controller = new AbortController();
@@ -126,6 +133,7 @@ export async function generateStructured<T>(options: {
       if (options.logUpstreamStatus) console.error("Gemini upstream status:", response.status);
       // Do not read or log provider error bodies: they can echo submitted data.
       await response.body?.cancel().catch(() => undefined);
+      // HTTP errors may originate from a gateway while work continues.
       if (response.status === 429)
         throw ERRORS.rateLimited(retryAfter(response));
       if (response.status >= 500) throw ERRORS.upstream();
@@ -140,9 +148,12 @@ export async function generateStructured<T>(options: {
     let payload: unknown;
     try {
       if (!response.body) throw ERRORS.malformed();
-      payload = JSON.parse(
-        await readBoundedText(response.body, LIMITS.geminiResponseBytes),
-      ) as unknown;
+      const text = await readBoundedText(response.body, LIMITS.geminiResponseBytes);
+      payload = JSON.parse(text) as unknown;
+      if (payload && typeof payload === "object" && "status" in payload &&
+          typeof payload.status === "string" && ["completed", "failed", "cancelled", "incomplete"].includes(payload.status)) {
+        options.onTerminal?.();
+      }
     } catch {
       if (controller.signal.aborted) throw ERRORS.timeout();
       throw ERRORS.malformed();

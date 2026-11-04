@@ -19,7 +19,7 @@ type AssessmentItem = { topic: typeof keys[number]; status: "sufficient" | "clar
 
 async function api(path: string, body: object) {
   let response: Response;
-  try { response = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }); }
+  try { response = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json", "Idempotency-Key": crypto.randomUUID().replaceAll("-", "") }, body: JSON.stringify(body) }); }
   catch { throw new Error("Нет связи с сервером. Проверьте подключение и попробуйте ещё раз"); }
   if (!response.ok) throw new Error(response.status === 429 || response.status === 503 ? "Сервис сейчас перегружен или исчерпан лимит. Попробуйте позже." : "Сервис пока недоступен. Попробуйте ещё раз.");
   try { return await response.json(); } catch { throw new Error("Сервис вернул некорректный ответ. Попробуйте ещё раз"); }

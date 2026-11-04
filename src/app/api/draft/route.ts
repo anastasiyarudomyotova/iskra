@@ -1,6 +1,7 @@
+import { withAiAdmission } from "@/lib/server/ai-limiter";
 import { ERRORS } from "@/lib/server/api-errors";
 import { draftModelSchema, draftResponseSchema, DRAFT_INSTRUCTION, validDraft } from "@/lib/server/draft-generation";
-import { generateStructured } from "@/lib/server/gemini";
+import { assertGeminiConfigured, generateStructured } from "@/lib/server/gemini";
 import { errorResponse, jsonResponse, readJson } from "@/lib/server/http";
 import { generateRequestSchema, LIMITS } from "@/lib/server/schemas";
 
@@ -8,11 +9,13 @@ export async function POST(request: Request): Promise<Response> {
   try {
     const body = generateRequestSchema.safeParse(await readJson(request, LIMITS.generateBodyBytes));
     if (!body.success) throw ERRORS.input();
-    const result = await generateStructured({
+    assertGeminiConfigured();
+    const result = await withAiAdmission(request, "draft", body.data, terminal => generateStructured({
+      onTerminal: terminal,
       model: "gemini-3.5-flash-lite", systemInstruction: DRAFT_INSTRUCTION,
       content: [{ type: "text", text: `Составь черновик из этих ответов:\n${JSON.stringify(body.data.answers)}` }],
       schema: draftResponseSchema, modelSchema: draftModelSchema, maxOutputTokens: 8192, logUpstreamStatus: true,
-    });
+    }));
     if (!validDraft(result, body.data.answers)) throw ERRORS.malformed();
     return jsonResponse(result);
   } catch (error) { return errorResponse(error); }

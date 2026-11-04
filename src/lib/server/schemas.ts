@@ -3,11 +3,11 @@ import "server-only";
 import { z } from "zod";
 
 export const LIMITS = {
-  audioBytes: 4 * 1024 * 1024,
+  audioBytes: 3 * 1024 * 1024 - 1024,
   audioDurationSeconds: 60,
   // Allow the container's final partial audio frame without extending the UI limit.
   audioDurationToleranceSeconds: 0.25,
-  transcribeBodyBytes: 6 * 1024 * 1024,
+  transcribeBodyBytes: 4 * 1024 * 1024,
   generateBodyBytes: 64 * 1024,
   answerCharacters: 4000,
   geminiResponseBytes: 256 * 1024,

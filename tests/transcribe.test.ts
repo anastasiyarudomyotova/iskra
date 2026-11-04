@@ -1,3 +1,7 @@
+// Route contract tests isolate the provider; limiter integration is tested separately.
+vi.mock("@/lib/server/ai-limiter", () => ({
+  withAiAdmission: async (_request: Request, _route: string, _body: unknown, run: (terminal: () => void) => Promise<unknown>) => run(() => {}),
+}));
 import { describe, expect, it, vi } from "vitest";
 import { POST } from "@/app/api/transcribe/route";
 import { LIMITS } from "@/lib/server/schemas";
@@ -121,7 +125,7 @@ describe("POST /api/transcribe", () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
-  it("rejects decoded audio over 4 MiB before parsing or calling Gemini", async () => {
+  it("rejects decoded audio over the configured cap before parsing or calling Gemini", async () => {
     const bytes = Buffer.alloc(LIMITS.audioBytes + 1);
     const response = await POST(
       request(audioBody({ audioBase64: bytes.toString("base64") })),

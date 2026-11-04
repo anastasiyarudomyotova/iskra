@@ -1,7 +1,8 @@
+import { withAiAdmission } from "@/lib/server/ai-limiter";
 import { ERRORS } from "@/lib/server/api-errors";
 import { validateAudio } from "@/lib/server/audio";
 import { errorResponse, jsonResponse, readJson } from "@/lib/server/http";
-import { generateStructured } from "@/lib/server/gemini";
+import { assertGeminiConfigured, generateStructured } from "@/lib/server/gemini";
 import { TRANSCRIBE_INSTRUCTION } from "@/lib/server/prompts";
 import {
   LIMITS,
@@ -21,7 +22,9 @@ export async function POST(request: Request): Promise<Response> {
       body.data.audioBase64,
       body.data.mimeType,
     );
-    const result = await generateStructured({
+    assertGeminiConfigured();
+    const result = await withAiAdmission(request, "transcribe", body.data, terminal => generateStructured({
+      onTerminal: terminal,
       systemInstruction: TRANSCRIBE_INSTRUCTION,
       content: [
         { type: "audio", data: audio.data, mime_type: audio.mimeType },
@@ -32,7 +35,7 @@ export async function POST(request: Request): Promise<Response> {
       ],
       schema: transcriptSchema,
       maxOutputTokens: 4096,
-    });
+    }));
     return jsonResponse(result);
   } catch (error) {
     return errorResponse(error);

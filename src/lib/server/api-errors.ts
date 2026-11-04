@@ -2,6 +2,7 @@ import "server-only";
 
 /** Public errors contain no provider response, request body, prompt or secret. */
 export type ApiErrorCode =
+  | "DUPLICATE_OPERATION"
   | "INVALID_JSON"
   | "INVALID_INPUT"
   | "UNSUPPORTED_MEDIA_TYPE"

@@ -1,5 +1,6 @@
+import { withAiAdmission } from "@/lib/server/ai-limiter";
 import { ERRORS } from "@/lib/server/api-errors";
-import { generateStructured } from "@/lib/server/gemini";
+import { assertGeminiConfigured, generateStructured } from "@/lib/server/gemini";
 import { errorResponse, jsonResponse, readJson } from "@/lib/server/http";
 import { answersPrompt, GENERATE_INSTRUCTION } from "@/lib/server/prompts";
 import {
@@ -16,12 +17,14 @@ export async function POST(request: Request): Promise<Response> {
       await readJson(request, LIMITS.generateBodyBytes),
     );
     if (!body.success) throw ERRORS.input();
-    const result = await generateStructured({
+    assertGeminiConfigured();
+    const result = await withAiAdmission(request, "generate", body.data, terminal => generateStructured({
+      onTerminal: terminal,
       systemInstruction: GENERATE_INSTRUCTION,
       content: [{ type: "text", text: answersPrompt(body.data.answers) }],
       schema: generateResponseSchema,
       maxOutputTokens: 8192,
-    });
+    }));
     return jsonResponse(result);
   } catch (error) {
     return errorResponse(error);
