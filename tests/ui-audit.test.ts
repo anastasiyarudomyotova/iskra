@@ -4,6 +4,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import Home from "@/app/page";
 
+// Regression: even a legacy production build variable must never enable a fake transcript.
+vi.hoisted(() => { vi.stubEnv("NEXT_PUBLIC_ISKRA_MOCK", "true"); });
+
 const answer = "Это вымышленный ответ для тестирования.";
 afterEach(() => { cleanup(); Reflect.deleteProperty(navigator, "mediaDevices"); });
 
@@ -59,6 +62,23 @@ describe("intro navigation", () => {
 });
 
 describe("voice negative paths", () => {
+  it("sends recorded audio to the transcription API even when the old mock flag is set", async () => {
+    mockRecorder(); const field = start();
+    const fetchMock = vi.fn<typeof fetch>(async () => Response.json({ transcript: "Синтетический ответ сервера.", uncertainWords: [] }));
+    vi.stubGlobal("fetch", fetchMock);
+    expect(screen.queryByText(/Демонстрационный режим записи/)).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Записать ответ" }));
+    await screen.findByText("Идёт запись");
+    act(() => FakeRecorder.latest.ondataavailable?.({ data: new Blob(["synthetic"]) }));
+    fireEvent.click(screen.getByRole("button", { name: /Завершить запись/ }));
+    await waitFor(() => expect(field.value).toBe("Синтетический ответ сервера."));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe("/api/transcribe");
+    expect(JSON.parse(String(init?.body))).toEqual({ audioBase64: "c3ludGhldGlj", mimeType: "audio/webm" });
+    expect(screen.queryByText(/демонстрационная расшифровка/i)).toBeNull();
+  });
+
   it("keeps the answer on unsupported microphone and permission denial", async () => {
     const field = start();
     fireEvent.click(screen.getByRole("button", { name: "Записать ответ" }));
