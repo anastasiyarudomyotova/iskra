@@ -368,3 +368,45 @@ body, .app-shell { background: #fbfbfb; color: #171717; }
 .review-content p { margin-top: 1.5px; }
 /* Center the marker against a title and one-line description, excluding the edit action. */
 .review-number { margin-top: 6.75px; }
+
+/* Editable draft and advisory completeness review. */
+.draft-section { padding: 16px 0; border-top: 1px solid #e8e8ec; }
+.draft-section label { display: block; font-weight: 700; font-size: 14px; color: #262629; margin-bottom: 8px; }
+.draft-editor { display: flex; align-items: flex-start; gap: 10px; }
+.draft-editor > span { color: #d85c00; font-size: 18px; line-height: 1.5; }
+.result-box .draft-editor textarea { flex: 1; min-height: 78px; width: 100%; resize: vertical; padding: 10px 12px; line-height: 1.6; }
+.draft-stale { margin-top: 16px; padding: 14px; background: #fff5e9; border-radius: 10px; font-size: 13px; }
+.draft-stale button { margin-top: 10px; white-space: normal; height: auto; min-height: 36px; }
+.assessment-heading h2 { font-size: 21px; line-height: 1.2; letter-spacing: -.04em; font-weight: 700; }
+.assessment-heading p, .assessment-privacy { font-size: 12px; line-height: 1.5; color: #62646a; margin-top: 8px; }
+.assessment-privacy { padding: 12px; background: #f6f6f8; border-radius: 9px; }
+.assessment-list { margin-top: 12px; }
+.assessment-item { padding: 14px 0; border-bottom: 1px solid #eaeaec; }
+.assessment-item:last-child { border-bottom: 0; padding-bottom: 0; }
+.assessment-item-title { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.assessment-item h3 { font-weight: 700; font-size: 13px; line-height: 1.4; }
+.assessment-status { flex-shrink: 0; font-size: 10px; font-weight: 700; padding: 3px 7px; border-radius: 6px; background: #f1f2f7; color: #55585e; }
+.assessment-status.sufficient { background: #eaf5ec; color: #28643a; }
+.assessment-status.clarify { background: #fff0df; color: #8d3b00; }
+.assessment-status.missing { background: #f1f2f7; color: #55585e; }
+.assessment-evidence, .assessment-question { margin-top: 8px; font-size: 12px; line-height: 1.5; color: #5f6268; overflow-wrap: anywhere; white-space: pre-wrap; }
+.assessment-question { color: #333; }
+.assessment-message { margin-top: 16px; font-size: 13px; line-height: 1.5; color: #55585e; }
+.assessment-message button { margin-top: 10px; }
+@media (max-width: 380px) { .result-heading { flex-wrap: wrap; } }
+.assessment-before-submit { font-size: 12px; line-height: 1.5; color: #62646a; margin-top: 14px; }
+
+.rich-editor { border: 1px solid #e4e4e8; border-radius: 10px; overflow: hidden; }
+.format-toolbar { display: flex; flex-wrap: wrap; gap: 3px; padding: 8px; border-bottom: 1px solid #e9e9ed; background: #fafafa; }
+.format-toolbar button { display: grid; place-items: center; width: 34px; height: 34px; border: 0; border-radius: 6px; color: #4f5155; background: transparent; cursor: pointer; }
+.format-toolbar button:hover, .format-toolbar button[aria-pressed="true"] { background: #fff0e5; color: #a84500; }
+.format-toolbar button:disabled { opacity: .35; cursor: default; }
+.format-toolbar button:focus-visible { outline: 2px solid #c45300; outline-offset: 1px; }
+.rich-text-area { min-height: 330px; padding: 18px; color: #303034; font-size: 14px; line-height: 1.7; overflow-wrap: anywhere; outline: none; }
+.rich-text-area:focus-visible { box-shadow: inset 0 0 0 2px #c45300; }
+.rich-text-area p { margin: 0 0 .8em; }
+.rich-text-area h2 { font-size: 16px; font-weight: 700; margin: 1em 0 .5em; }
+.rich-text-area > :first-child { margin-top: 0; }
+.rich-text-area ul, .rich-text-area ol { margin: .5em 0 1em; padding-left: 1.6em; }
+.rich-text-area ul { list-style: disc; }.rich-text-area ol { list-style: decimal; }
+.rich-text-area li p { margin: 0; }
