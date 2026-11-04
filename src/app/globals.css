@@ -337,7 +337,9 @@ body, .app-shell { background: #fbfbfb; color: #171717; }
 /* Keep the intro as tall as the question layout without fixing its height. */
 .intro-panel { display: grid; }
 .intro-panel > .intro-screen, .intro-panel > .question-screen { grid-area: 1 / 1; }
-.intro-panel > .question-screen { visibility: hidden; }
+/* The hidden layout placeholder must not paint or animate over the intro. */
+.intro-panel > .question-screen { visibility: hidden; pointer-events: none; }
+.intro-panel > .question-screen h2 { animation: none; }
 .intro-panel > .intro-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; }
 .intro-panel > .intro-screen > * { flex-shrink: 0; }
 
