@@ -11,7 +11,7 @@ export async function POST(request: Request): Promise<Response> {
     const result = await generateStructured({
       model: "gemini-3.5-flash-lite", systemInstruction: DRAFT_INSTRUCTION,
       content: [{ type: "text", text: `Составь черновик из этих ответов:\n${JSON.stringify(body.data.answers)}` }],
-      schema: draftResponseSchema, maxOutputTokens: 8192,
+      schema: draftResponseSchema, maxOutputTokens: 8192, logUpstreamStatus: true,
     });
     if (!validDraft(result, body.data.answers)) throw ERRORS.malformed();
     return jsonResponse(result);

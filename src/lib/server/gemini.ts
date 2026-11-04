@@ -75,6 +75,7 @@ export async function generateStructured<T>(options: {
   schema: z.ZodType<T>;
   maxOutputTokens: number;
   model?: string;
+  logUpstreamStatus?: boolean;
 }): Promise<T> {
   const { apiKey, model } = configuration(options.model);
   const controller = new AbortController();
@@ -121,6 +122,9 @@ export async function generateStructured<T>(options: {
 
   try {
     if (!response.ok) {
+      // Only the numeric status is logged; never log the provider response or input.
+      if (options.logUpstreamStatus)
+        console.error("Gemini draft upstream HTTP status:", response.status);
       // Do not read or log provider error bodies: they can echo submitted data.
       await response.body?.cancel().catch(() => undefined);
       if (response.status === 429)

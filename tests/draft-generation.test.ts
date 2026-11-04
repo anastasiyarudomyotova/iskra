@@ -29,6 +29,20 @@ describe("POST /api/draft", () => {
     if (mode === "empty blocks") result.blocks = [];
     mockGemini(result); const response = await POST(request()); expect(response.status).toBe(502); expect((await response.json()).code).toBe("INVALID_MODEL_OUTPUT");
   });
+  it("logs only the provider HTTP status for diagnosis", async () => {
+    vi.stubEnv("GEMINI_API_KEY", TEST_KEY);
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      vi.stubGlobal("fetch", vi.fn(async () => new Response(`private ${TEST_KEY}`, { status: 400 })));
+      const response = await POST(request());
+      expect(response.status).toBe(502);
+      expect((await response.json()).code).toBe("UPSTREAM_ERROR");
+      expect(log).toHaveBeenCalledOnce();
+      expect(log).toHaveBeenCalledWith("Gemini draft upstream HTTP status:", 400);
+    } finally {
+      log.mockRestore();
+    }
+  });
   it("fails safely on provider error and invalid input", async () => {
     vi.stubEnv("GEMINI_API_KEY", TEST_KEY); vi.stubGlobal("fetch", vi.fn(async () => new Response("provider secret", { status: 500 })));
     const response = await POST(request()); expect(response.status).toBe(503); expect(JSON.stringify(await response.json())).not.toContain("provider secret");
