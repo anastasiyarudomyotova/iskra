@@ -8,12 +8,16 @@ const item = z.strictObject({
   source_topic: z.enum(topics),
   evidence: z.string().min(1).max(LIMITS.answerCharacters),
 });
+const block = z.strictObject({
+  heading: z.enum(["Обязанности", "О проекте", "Планы", "Знания и инструменты"]).nullable(),
+  type: z.enum(["paragraph", "bullet_list"]),
+  items: z.array(item),
+});
+// Avoid a potentially expensive nested 30 × 30 array constraint at the provider.
+// The full bounds remain enforced locally before any response is returned.
+export const draftModelSchema = z.strictObject({ blocks: z.array(block) });
 export const draftResponseSchema = z.strictObject({
-  blocks: z.array(z.strictObject({
-    heading: z.enum(["Обязанности", "О проекте", "Планы", "Знания и инструменты"]).nullable(),
-    type: z.enum(["paragraph", "bullet_list"]),
-    items: z.array(item).min(1).max(30),
-  })).min(1).max(30),
+  blocks: z.array(block.extend({ items: z.array(item).min(1).max(30) })).min(1).max(30),
 });
 export type DraftResponse = z.infer<typeof draftResponseSchema>;
 export function validDraft(result: DraftResponse, answers: Record<typeof topics[number], string>): boolean {

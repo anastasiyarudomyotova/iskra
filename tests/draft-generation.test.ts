@@ -18,6 +18,18 @@ describe("POST /api/draft", () => {
     expect(JSON.stringify(result.blocks)).not.toMatch(/зарплат|Москва|должность|опыт/i);
     const sent = sentBody(mock); expect(sent.model).toBe("gemini-3.5-flash-lite"); expect(sent.store).toBe(false); expect(sent.background).toBe(false); expect(sent.system_instruction).toContain("Не выдумывай");
   });
+  it("sends an unbounded nested array schema but still enforces local limits", async () => {
+    vi.stubEnv("GEMINI_API_KEY", TEST_KEY);
+    const result = sample();
+    result.blocks = Array.from({ length: 31 }, () => sample().blocks[0]);
+    const mock = mockGemini(result);
+    const response = await POST(request());
+    expect(response.status).toBe(502);
+    expect((await response.json()).code).toBe("INVALID_MODEL_OUTPUT");
+    const blocks = sentBody(mock).response_format.schema.properties.blocks;
+    expect(blocks.maxItems).toBeUndefined();
+    expect(blocks.items.properties.items.maxItems).toBeUndefined();
+  });
   it.each(["invented evidence", "invented number", "invented city", "extra field", "invented heading", "multiple paragraph items", "empty blocks"])("rejects %s", async mode => {
     vi.stubEnv("GEMINI_API_KEY", TEST_KEY); const result = sample(); const item = result.blocks[0].items[0];
     if (mode === "invented evidence") item.evidence = "вымышленная зарплата";

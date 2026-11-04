@@ -73,6 +73,7 @@ export async function generateStructured<T>(options: {
   systemInstruction: string;
   content: Content[];
   schema: z.ZodType<T>;
+  modelSchema?: z.ZodType;
   maxOutputTokens: number;
   model?: string;
   logUpstreamStatus?: boolean;
@@ -97,7 +98,7 @@ export async function generateStructured<T>(options: {
         response_format: {
           type: "text",
           mime_type: "application/json",
-          schema: modelJsonSchema(options.schema),
+          schema: modelJsonSchema(options.modelSchema ?? options.schema),
         },
         generation_config: {
           max_output_tokens: options.maxOutputTokens,
