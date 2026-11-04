@@ -14,7 +14,6 @@ const questions = [
   { title: "Что нужно знать и уметь?", hint: "Расскажите об инструментах, программах и знаниях, необходимых для работы", example: "Например: Excel, управление проектами, аналитика" },
 ];
 const keys = ["daily_tasks", "current_project", "next_six_months", "tools_and_knowledge"] as const;
-const mock = process.env.NEXT_PUBLIC_ISKRA_MOCK === "true";
 type AssessmentItem = { topic: typeof keys[number]; status: "sufficient" | "clarify" | "missing"; evidence: string | null; question: string };
 
 async function api(path: string, body: object) {
@@ -68,15 +67,11 @@ export default function Home() {
     if (!blob.size) { setMessage("Запись пуста. Попробуйте ещё раз или введите ответ вручную"); setStatus("idle"); return; }
     setStatus("transcribing"); setMessage("");
     try {
-      let transcript: string;
-      if (mock) { await new Promise(r => setTimeout(r, 700)); transcript = "Это демонстрационная расшифровка. Замените её своим ответом."; }
-      else {
-        const audioBase64 = await new Promise<string>((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result).split(",")[1]); reader.onerror = () => reject(new Error("Не удалось прочитать запись")); reader.readAsDataURL(blob); });
-        const data = await api("/api/transcribe", { audioBase64, mimeType: blob.type });
-        if (typeof data.transcript !== "string" || !data.transcript.trim()) throw new Error("Не удалось распознать речь. Попробуйте ещё раз или введите текст");
-        transcript = data.transcript;
-        if (Array.isArray(data.uncertainWords) && data.uncertainWords.length) setNotice(`Проверьте слова: ${data.uncertainWords.join(", ")}`);
-      }
+      const audioBase64 = await new Promise<string>((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result).split(",")[1]); reader.onerror = () => reject(new Error("Не удалось прочитать запись")); reader.readAsDataURL(blob); });
+      const data = await api("/api/transcribe", { audioBase64, mimeType: blob.type });
+      if (typeof data.transcript !== "string" || !data.transcript.trim()) throw new Error("Не удалось распознать речь. Попробуйте ещё раз или введите текст");
+      const transcript: string = data.transcript;
+      if (Array.isArray(data.uncertainWords) && data.uncertainWords.length) setNotice(`Проверьте слова: ${data.uncertainWords.join(", ")}`);
       setVoiceError(false); setAnswerError(""); setAnswers(a => a.map((v, i) => i === step ? transcript : v)); setConfirmed(c => c.map((v, i) => i === step ? false : v));
       setNotice(n => n || "Текст готов — проверьте и отредактируйте его перед подтверждением");
     } catch (e) { setMessage(e instanceof Error ? e.message : "Не удалось распознать запись. Попробуйте ещё раз"); }
@@ -185,7 +180,6 @@ export default function Home() {
       </nav>
       <div className="app-main">
         <main className="workspace">
-          {mock && <div className="mock-banner">Демонстрационный режим записи; создание черновика и его проверка используют ИИ</div>}
           <div className="workspace-grid">
             <section className={`main-panel ${screen === "intro" ? "intro-panel" : ""}`} aria-label={screen === "result" ? "Черновик вакансии" : "Мастер вопросов"}>
               {screen === "intro" && <div className="intro-screen">
@@ -211,7 +205,6 @@ export default function Home() {
                       </div>
                     </div>
                   </div>
-                  <p className="voice-privacy">{mock ? "Деморежим: запись не отправляется, расшифровка вымышленная" : null}</p>
                   <div className="input-divider"><span/> ИЛИ ВВЕДИТЕ ТЕКСТ <span/></div>
                   <label className="text-label" htmlFor="answer">{notice && !message ? "Текст ответа · можно редактировать" : "Текст ответа"}</label>
                   <textarea id="answer" aria-invalid={!!answerError} aria-describedby={answerError ? "answer-error" : undefined} value={answers[step]} onChange={e => changeAnswer(e.target.value)} placeholder={questions[step].example} disabled={status !== "idle"}/>
